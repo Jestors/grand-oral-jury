@@ -10,18 +10,20 @@ export default async function handler(req, res) {
   const { filiere, question, spe1, spe2, note_percue, utilite, manque, note_jury } = req.body;
 
   // Si pas de Supabase configuré, on log juste et on répond OK
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env["URL SUPABASE"] || process.env.URL_SUPABASE;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+if (!supabaseUrl || !supabaseKey) {
     console.log("Feedback reçu (Supabase non configuré):", req.body);
     return res.status(200).json({ ok: true, mode: "log_only" });
   }
 
   try {
-    const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/simulations`, {
+    const response = await fetch(`${supabaseUrl}/rest/v1/simulations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "apikey": process.env.SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${process.env.SUPABASE_ANON_KEY}`,
+        "Authorization": `Bearer ${stats.js}`,
         "Prefer": "return=minimal",
       },
       body: JSON.stringify({
