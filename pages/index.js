@@ -240,7 +240,7 @@ function SetupGeneral({onStart,onBack}) {
           <select value={x.v} onChange={e=>x.set(e.target.value)}
             style={{width:"100%",padding:"10px 14px",border:`1.5px solid ${x.v?c.primary:"#E8E7F0"}`,borderRadius:10,fontSize:13,fontFamily:"inherit",color:x.v?"#1C1A2E":"#aaa",outline:"none",background:"#fff"}}>
             <option value="">Choisir...</option>
-            {SPECIALITES.filter(s=>s!==x.o).map(s=><option key={s} value={s}>{s}</option>)}
+            {SPECIALITES.map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       )}
