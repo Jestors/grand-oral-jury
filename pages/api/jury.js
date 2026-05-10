@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     process.env.ANTHROPIC_API_KEY ||
     process.env.CLE_API_ANTHROPIC ||
     process.env.CL_API_ANTHROPIC ||
-    process.env.MACLERAPIKEY ||
+    process.env.MYKEY ||
     Object.values(process.env).find(v => v && v.startsWith("sk-ant-"));
 
   if (!apiKey) {
