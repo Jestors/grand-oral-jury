@@ -31,7 +31,7 @@ VERSION COMPACTE — 2 échanges max.
 FORMAT : [Q1] [Q2] [Q3] pour questions — [BILAN] pour bilan final.`;
 
 async function callJury(system, messages) {
-  const res = await fetch("https://grand-oral-jury.vercel.app/api/jury", {
+  const res = await fetch("/api/jury", {
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ system, messages }),
   });
