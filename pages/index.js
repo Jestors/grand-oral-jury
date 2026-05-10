@@ -227,7 +227,7 @@ function SetupSTMG({onStart,onBack}) {
 // ── SETUP SÉRIE GÉNÉRALE ──────────────────────────────────────────────────
 function SetupGeneral({onStart,onBack}) {
   const [q,setQ]=useState(""), [t,setT]=useState(""), [s1,setS1]=useState(""), [s2,setS2]=useState("");
-  const c=COLORS.general, can=q.trim().length>10&&t.trim().length>50&&s1&&s2&&s1!==s2;
+  const c=COLORS.general, can=q.trim().length>10&&t.trim().length>50&&s1&&s2;
   return <div>
     <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:"#888",fontSize:13,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Retour</button>
     <div style={{background:c.light,borderLeft:`3px solid ${c.primary}`,padding:"12px 14px",borderRadius:"0 10px 10px 0",fontSize:13,color:"#062E22",lineHeight:1.6,marginBottom:24}}>
