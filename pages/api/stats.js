@@ -35,8 +35,9 @@ export default async function handler(req, res) {
     };
 
     const feedRes = await fetch(
-      `${base}?select=filiere,question,spe1,spe2,etablissement,ville,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=50`,
-    );
+  `${base}?select=filiere,question,spe1,spe2,etablissement,ville,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=50`,
+  { headers }
+);
     const feedbacks = await feedRes.json();
 
     if (!Array.isArray(feedbacks)) {
