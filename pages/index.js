@@ -101,11 +101,28 @@ function useMic({ onPartial, onFinal }) {
 // ── CHAMP TEXTAREA + MICRO ────────────────────────────────────────────────
 function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color }) {
   const [interim, setInterim] = useState("");
+  const textBeforeMic = useRef(""); // texte existant avant de commencer la dictée
+
   const { active, ok, toggle } = useMic({
-    onPartial: (final, int) => { onChange(final); setInterim(int); },
-    onFinal:   (final)      => { onChange(final); setInterim(""); },
-    // le texte cumulé est déjà géré dans useMic
+    onPartial: (final, int) => {
+      onChange(textBeforeMic.current + final);
+      setInterim(int);
+    },
+    onFinal: (final) => {
+      const newText = (textBeforeMic.current + final).trim();
+      textBeforeMic.current = newText ? newText + " " : "";
+      onChange(textBeforeMic.current.trim());
+      setInterim("");
+    },
   });
+
+  // Capture le texte existant juste avant de démarrer la dictée
+  const handleToggle = () => {
+    if (!active) {
+      textBeforeMic.current = value ? value.trim() + " " : "";
+    }
+    toggle();
+  };
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -118,7 +135,7 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
 
       {ok && (
         <div style={{ marginTop:8 }}>
-          <button onClick={toggle} style={{
+          <button onClick={handleToggle} style={{
             display:"flex", alignItems:"center", gap:8,
             padding:"8px 16px", borderRadius:99, border:"none",
             background: active ? "#DC2626" : color,
@@ -294,10 +311,20 @@ function ChatScreen({system,question,filiere,spe1,spe2,onRestart}) {
   const c=COLORS[filiere];
   const [interim,setInterim]=useState("");
 
-  const {active:micActive,ok:micOk,toggle:micToggle}=useMic({
-    onPartial:(final,int)=>{setInput(final);setInterim(int);},
-    onFinal:(final)=>{setInput(final);setInterim("");},
+  const micTextBefore = useRef("");
+  const {active:micActive,ok:micOk,toggle:micToggleBase}=useMic({
+    onPartial:(final,int)=>{setInput(micTextBefore.current + final);setInterim(int);},
+    onFinal:(final)=>{
+      const newText = (micTextBefore.current + final).trim();
+      micTextBefore.current = newText ? newText + " " : "";
+      setInput(micTextBefore.current.trim());
+      setInterim("");
+    },
   });
+  const micToggle = () => {
+    if (!micActive) micTextBefore.current = input ? input.trim() + " " : "";
+    micToggleBase();
+  };
 
   useEffect(()=>{startJury();},[]);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages,typing]);
