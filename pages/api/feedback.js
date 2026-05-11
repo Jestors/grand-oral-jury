@@ -1,18 +1,18 @@
-// pages/api/feedback.js
-// Enregistre chaque simulation + feedback dans Supabase (gratuit)
-// Variables d'environnement nécessaires :
-//   SUPABASE_URL=https://xxxx.supabase.co
-//   SUPABASE_ANON_KEY=eyJ...
-
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { filiere, question, spe1, spe2, note_percue, utilite, manque, note_jury } = req.body;
 
-  // Si pas de Supabase configuré, on log juste et on répond OK
-  const supabaseUrl = process.env.SUPABASE_URL || process.env["URL SUPABASE"] || process.env.URL_SUPABASE;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-if (!supabaseUrl || !supabaseKey) {
+  const supabaseUrl =
+    process.env.SUPABASE_URL ||
+    process.env["URL SUPABASE"] ||
+    process.env.URL_SUPABASE;
+
+  const supabaseKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
     console.log("Feedback reçu (Supabase non configuré):", req.body);
     return res.status(200).json({ ok: true, mode: "log_only" });
   }
@@ -22,13 +22,12 @@ if (!supabaseUrl || !supabaseKey) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": process.env.SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${stats.js}`,
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
         "Prefer": "return=minimal",
       },
       body: JSON.stringify({
-        filiere,
-        question,
+        filiere, question,
         spe1: spe1 || null,
         spe2: spe2 || null,
         note_percue: note_percue || null,
