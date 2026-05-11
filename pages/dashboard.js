@@ -22,26 +22,53 @@ function StatCard({ icon, label, value, sub, color="#3D2FA0" }) {
 
 function FeedbackRow({ fb, i }) {
   const date = new Date(fb.created_at).toLocaleDateString("fr-FR", {day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+  const isGeneral = fb.filiere === "general";
+
   return (
     <div style={{
       padding:"12px 16px", background: i%2===0?"#F9F8FF":"#fff",
       borderBottom:"1px solid #E8E7F0", fontSize:13,
     }}>
+      {/* Ligne 1 : badge filière + question + date */}
       <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
         <span style={{
           fontSize:10, padding:"2px 8px", borderRadius:99, fontWeight:600,
-          background: fb.filiere==="stmg"?"#EDE9FF":"#E1F5EE",
-          color: fb.filiere==="stmg"?"#3D2FA0":"#0B6B54",
+          background: isGeneral?"#E1F5EE":"#EDE9FF",
+          color: isGeneral?"#0B6B54":"#3D2FA0",
           flexShrink:0,
         }}>{fb.filiere?.toUpperCase()}</span>
         <span style={{flex:1,color:"#1C1A2E",fontStyle:"italic"}}>« {fb.question?.slice(0,80)}{fb.question?.length>80?"...":""} »</span>
         <span style={{fontSize:11,color:"#888",flexShrink:0,fontFamily:"monospace"}}>{date}</span>
       </div>
+
+      {/* Ligne 2 : spécialités (Série Générale uniquement) */}
+      {isGeneral && (fb.spe1 || fb.spe2) && (
+        <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
+          {fb.spe1 && (
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,background:"#E1F5EE",color:"#0B6B54",fontWeight:500}}>
+              📗 {fb.spe1}
+            </span>
+          )}
+          {fb.spe2 && (
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,background:"#E8F4EF",color:"#1D9E75",fontWeight:500}}>
+              📘 {fb.spe2}
+            </span>
+          )}
+          {/* Établissement + ville si renseignés */}
+          {(fb.etablissement || fb.ville) && (
+            <span style={{fontSize:11,color:"#888",fontStyle:"italic"}}>
+              🏫 {[fb.etablissement, fb.ville].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Ligne 3 : notes et feedback */}
       <div style={{display:"flex",gap:16,marginTop:8,flexWrap:"wrap"}}>
-        {fb.note_jury && <span style={{fontSize:12,color:"#3D2FA0",fontWeight:600}}>Note jury : {fb.note_jury}/20</span>}
-        {fb.note_percue && <span style={{fontSize:12,color:"#0B6B54"}}>Note perçue : {fb.note_percue}/20</span>}
-        {fb.utilite && <span style={{fontSize:12,color:"#555"}}>✅ {fb.utilite}</span>}
-        {fb.manque && <span style={{fontSize:12,color:"#933"}}>⚠️ {fb.manque}</span>}
+        {fb.note_jury    && <span style={{fontSize:12,color:"#3D2FA0",fontWeight:600}}>Note jury : {fb.note_jury}/20</span>}
+        {fb.note_percue  && <span style={{fontSize:12,color:"#0B6B54"}}>Note perçue : {fb.note_percue}/20</span>}
+        {fb.utilite      && <span style={{fontSize:12,color:"#555"}}>✅ {fb.utilite}</span>}
+        {fb.manque       && <span style={{fontSize:12,color:"#933"}}>⚠️ {fb.manque}</span>}
       </div>
     </div>
   );
@@ -137,10 +164,9 @@ export default function Dashboard() {
         {data?.mode==="demo" && (
           <div style={{background:"#fff",borderRadius:14,border:"1.5px solid #E8E7F0",padding:"20px 24px"}}>
             <div style={{fontWeight:600,fontSize:14,color:"#1C1A2E",marginBottom:16}}>🔧 Configurer Supabase (gratuit — 5 minutes)</div>
-
             {[
               ["1. Créer un compte Supabase", "Va sur supabase.com → New Project → nomme-le 'grand-oral'"],
-              ["2. Créer la table", `Dans l'éditeur SQL de Supabase, colle et exécute :\n\nCREATE TABLE simulations (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  filiere text,\n  question text,\n  spe1 text,\n  spe2 text,\n  note_percue text,\n  note_jury text,\n  utilite text,\n  manque text,\n  created_at timestamptz DEFAULT now()\n);`],
+              ["2. Créer la table", `Dans l'éditeur SQL de Supabase, colle et exécute :\n\nCREATE TABLE simulations (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  filiere text,\n  question text,\n  spe1 text,\n  spe2 text,\n  etablissement text,\n  ville text,\n  note_percue text,\n  note_jury text,\n  utilite text,\n  manque text,\n  created_at timestamptz DEFAULT now()\n);`],
               ["3. Récupérer les clés", "Settings → API → copie 'Project URL' et 'anon public key'"],
               ["4. Ajouter dans Vercel", "Settings → Environment Variables :\n• SUPABASE_URL = https://xxxx.supabase.co\n• SUPABASE_ANON_KEY = eyJ...\n• DASHBOARD_PASSWORD = ton mot de passe"],
             ].map(([title, content], i) => (
