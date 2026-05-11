@@ -42,10 +42,11 @@ async function callJury(system, messages) {
 
 // ── HOOK MICRO ────────────────────────────────────────────────────────────
 function useMic({ onPartial, onFinal }) {
-  const recRef   = useRef(null);
-  const finalRef = useRef("");
-  const [active, setActive]    = useState(false);
-  const [ok,     setOk]        = useState(false);
+  const recRef      = useRef(null);
+  const finalRef    = useRef("");
+  const previousRef = useRef(""); // garde le texte des sessions précédentes
+  const [active, setActive] = useState(false);
+  const [ok,     setOk]     = useState(false);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -62,20 +63,39 @@ function useMic({ onPartial, onFinal }) {
         if (e.results[i].isFinal) finalRef.current += t + " ";
         else interim = t;
       }
-      onPartial(finalRef.current, interim);
+      // Cumule le texte précédent + nouveau texte
+      const combined = (previousRef.current + finalRef.current).trim();
+      onPartial(combined, interim);
     };
-    r.onend = () => { setActive(false); onFinal(finalRef.current.trim()); finalRef.current = ""; };
+    r.onend = () => {
+      setActive(false);
+      const combined = (previousRef.current + finalRef.current).trim();
+      previousRef.current = combined ? combined + " " : "";
+      finalRef.current = "";
+      onFinal(combined);
+    };
     r.onerror = () => setActive(false);
     recRef.current = r;
   }, []);
 
   const toggle = useCallback(() => {
     if (!recRef.current) return;
-    if (active) { recRef.current.stop(); }
-    else { finalRef.current = ""; setActive(true); recRef.current.start(); }
+    if (active) {
+      recRef.current.stop();
+    } else {
+      finalRef.current = ""; // reset seulement le segment courant
+      setActive(true);
+      recRef.current.start();
+    }
   }, [active]);
 
-  return { active, ok, toggle };
+  // Réinitialise tout (pour recommencer de zéro)
+  const reset = useCallback(() => {
+    previousRef.current = "";
+    finalRef.current = "";
+  }, []);
+
+  return { active, ok, toggle, reset };
 }
 
 // ── CHAMP TEXTAREA + MICRO ────────────────────────────────────────────────
@@ -84,6 +104,7 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
   const { active, ok, toggle } = useMic({
     onPartial: (final, int) => { onChange(final); setInterim(int); },
     onFinal:   (final)      => { onChange(final); setInterim(""); },
+    // le texte cumulé est déjà géré dans useMic
   });
 
   return (
