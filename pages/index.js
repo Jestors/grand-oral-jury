@@ -878,10 +878,22 @@ export default function Home() {
     </div>
 
     <div style={{maxWidth:780,margin:"0 auto",padding:"22px 18px 60px"}}>
-      {screen==="choix"   && <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>}
+      {screen==="choix"   && (
+        <>
+          <div style={{textAlign:"center",marginBottom:16}}>
+            <span style={{fontSize:12,color:paidCredits>0?"#0B6B54":"#6558D3",background:paidCredits>0?"#E1F5EE":"#EDE9FF",padding:"4px 12px",borderRadius:99,fontFamily:"monospace"}}>
+              {paidCredits > 0 ? `⭐ ${paidCredits} simulations restantes` : simCount >= FREE_LIMIT ? "✅ Essai gratuit terminé" : `✅ ${FREE_LIMIT - simCount} simulation${FREE_LIMIT - simCount > 1 ? "s" : ""} gratuite${FREE_LIMIT - simCount > 1 ? "s" : ""} restante${FREE_LIMIT - simCount > 1 ? "s" : ""}`}
+            </span>
+          </div>
+          <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>
+        </>
+      )}
       {screen==="setup"   && filiere==="stmg"    && <SetupSTMG    onStart={(q,t,lvl)=>handleStart(q,t,"","",buildPromptSTMG(q,t,lvl),lvl)} onBack={()=>setScreen("choix")}/>}
       {screen==="setup"   && filiere==="general" && <SetupGeneral onStart={(q,t,s1,s2,lvl)=>handleStart(q,t,s1,s2,buildPromptGeneral(q,t,s1,s2,lvl),lvl)} onBack={()=>setScreen("choix")}/>}
       {screen==="chat"    && <ChatScreen system={system} question={question} filiere={filiere} spe1={spe1} spe2={spe2} onRestart={restart}/>}
+      {screen==="payment" && <PaymentWall onBack={()=>setScreen("choix")} onSuccess={()=>setScreen("choix")}/>}
+      {screen==="legal"   && <LegalPage onBack={backFromLegal}/>}
+      {screen!=="legal"  && <Footer onLegal={goLegal}/>}
     </div>
   </>;
 }
