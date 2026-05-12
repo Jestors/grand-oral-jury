@@ -10,101 +10,6 @@ const SPECIALITES = [
   "Sciences Politiques","Droit et Grandes Questions du Monde Contemporain",
 ];
 
-
-// ── GESTION CRÉDITS (localStorage simulé via state) ──────────────────────
-const FREE_LIMIT = 2;
-const PAID_CREDITS = 20;
-
-function useCredits() {
-  const [simCount, setSimCount] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return parseInt(sessionStorage.getItem("sim_count") || "0");
-  });
-  const [paidCredits, setPaidCredits] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return parseInt(sessionStorage.getItem("paid_credits") || "0");
-  });
-
-  const totalRemaining = paidCredits > 0 ? paidCredits : Math.max(0, FREE_LIMIT - simCount);
-  const canSimulate = simCount < FREE_LIMIT || paidCredits > 0;
-
-  const useOne = () => {
-    if (paidCredits > 0) {
-      const newPaid = paidCredits - 1;
-      setPaidCredits(newPaid);
-      sessionStorage.setItem("paid_credits", newPaid);
-    } else {
-      const newCount = simCount + 1;
-      setSimCount(newCount);
-      sessionStorage.setItem("sim_count", newCount);
-    }
-  };
-
-  const addPaidCredits = (n) => {
-    const newPaid = paidCredits + n;
-    setPaidCredits(newPaid);
-    sessionStorage.setItem("paid_credits", newPaid);
-  };
-
-  return { simCount, paidCredits, totalRemaining, canSimulate, useOne, addPaidCredits };
-}
-
-function PaymentWall({ onBack, onSuccess }) {
-  const [loading, setLoading] = useState(false);
-
-  async function handlePay() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/create-payment", { method: "POST" });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } catch(e) {
-      alert("Erreur de paiement — réessayez.");
-    }
-    setLoading(false);
-  }
-
-  return (
-    <div style={{ maxWidth: 480, margin: "40px auto", padding: "0 20px" }}>
-      <div style={{ background: "#1C1A2E", borderRadius: 20, padding: "32px 28px", color: "#fff", textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>⚖️</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-          Tu as utilisé tes 2 simulations gratuites
-        </h2>
-        <p style={{ fontSize: 14, color: "#9A8EF5", marginBottom: 24, lineHeight: 1.6 }}>
-          Continue à t'entraîner avec 20 simulations supplémentaires pour être vraiment prêt le jour J.
-        </p>
-
-        <div style={{ background: "rgba(255,255,255,.06)", borderRadius: 14, padding: "20px", marginBottom: 24 }}>
-          <div style={{ fontSize: 36, fontWeight: 700, color: "#9A8EF5" }}>3,99 €</div>
-          <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>paiement unique · pas d'abonnement</div>
-          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            {["20 simulations supplémentaires", "STMG & Série Générale", "Dictée vocale incluse", "Note sur 20 + axes d'amélioration"].map((f,i) => (
-              <div key={i} style={{ fontSize: 13, color: "#C4BDFF", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
-                <span style={{ color: "#6558D3" }}>✓</span> {f}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <button onClick={handlePay} disabled={loading}
-          style={{ width: "100%", padding: "14px", background: "#6558D3", border: "none", borderRadius: 12, color: "#fff", fontSize: 16, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", marginBottom: 12 }}>
-          {loading ? "Redirection..." : "Continuer pour 3,99 €"}
-        </button>
-
-        <button onClick={onBack}
-          style={{ background: "none", border: "none", color: "#555", fontSize: 13, cursor: "pointer" }}>
-          ← Retour
-        </button>
-      </div>
-
-      <div style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: "#aaa" }}>
-        🔒 Paiement sécurisé par Stripe · Conçu par Jenny ESTORS
-      </div>
-    </div>
-  );
-}
-
 const COLORS = {
   stmg:    { primary:"#3D2FA0", light:"#EDE9FF", mid:"#6558D3", dark:"#1C1A2E" },
   general: { primary:"#0B6B54", light:"#E1F5EE", mid:"#1D9E75", dark:"#062E22" },
@@ -151,7 +56,7 @@ ${DIFFICULTY_INSTRUCTIONS[level]}
 
 ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
 
-FORMAT DU BILAN OBLIGATOIRE — identique quel que soit le niveau :
+FORMAT DU BILAN OBLIGATOIRE :
 [BILAN]
 ## Évaluation de chaque réponse
 **Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
@@ -190,7 +95,7 @@ ${DIFFICULTY_INSTRUCTIONS[level]}
 
 ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
 
-FORMAT DU BILAN OBLIGATOIRE — identique quel que soit le niveau :
+FORMAT DU BILAN OBLIGATOIRE :
 [BILAN]
 ## Évaluation de chaque réponse
 **Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
@@ -232,7 +137,7 @@ async function callJury(system, messages) {
 function useMic({ onPartial, onFinal }) {
   const recRef      = useRef(null);
   const finalRef    = useRef("");
-  const previousRef = useRef(""); // garde le texte des sessions précédentes
+  const previousRef = useRef("");
   const [active, setActive] = useState(false);
   const [ok,     setOk]     = useState(false);
 
@@ -251,7 +156,6 @@ function useMic({ onPartial, onFinal }) {
         if (e.results[i].isFinal) finalRef.current += t + " ";
         else interim = t;
       }
-      // Cumule le texte précédent + nouveau texte
       const combined = (previousRef.current + finalRef.current).trim();
       onPartial(combined, interim);
     };
@@ -268,16 +172,10 @@ function useMic({ onPartial, onFinal }) {
 
   const toggle = useCallback(() => {
     if (!recRef.current) return;
-    if (active) {
-      recRef.current.stop();
-    } else {
-      finalRef.current = ""; // reset seulement le segment courant
-      setActive(true);
-      recRef.current.start();
-    }
+    if (active) { recRef.current.stop(); }
+    else { finalRef.current = ""; setActive(true); recRef.current.start(); }
   }, [active]);
 
-  // Réinitialise tout (pour recommencer de zéro)
   const reset = useCallback(() => {
     previousRef.current = "";
     finalRef.current = "";
@@ -289,13 +187,10 @@ function useMic({ onPartial, onFinal }) {
 // ── CHAMP TEXTAREA + MICRO ────────────────────────────────────────────────
 function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color }) {
   const [interim, setInterim] = useState("");
-  const textBeforeMic = useRef(""); // texte existant avant de commencer la dictée
+  const textBeforeMic = useRef("");
 
   const { active, ok, toggle } = useMic({
-    onPartial: (final, int) => {
-      onChange(textBeforeMic.current + final);
-      setInterim(int);
-    },
+    onPartial: (final, int) => { onChange(textBeforeMic.current + final); setInterim(int); },
     onFinal: (final) => {
       const newText = (textBeforeMic.current + final).trim();
       textBeforeMic.current = newText ? newText + " " : "";
@@ -304,11 +199,8 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
     },
   });
 
-  // Capture le texte existant juste avant de démarrer la dictée
   const handleToggle = () => {
-    if (!active) {
-      textBeforeMic.current = value ? value.trim() + " " : "";
-    }
+    if (!active) textBeforeMic.current = value ? value.trim() + " " : "";
     toggle();
   };
 
@@ -316,11 +208,9 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
     <div style={{ marginBottom: 20 }}>
       {label && <div style={{ fontSize:10, fontWeight:600, letterSpacing:".1em", textTransform:"uppercase", color:"#888", fontFamily:"monospace", marginBottom:6 }}>{label}</div>}
       {hint  && <div style={{ fontSize:12, color:"#888", marginBottom:8, lineHeight:1.5 }}>{hint}</div>}
-
       <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows} placeholder={placeholder}
         style={{ width:"100%", padding:"10px 14px", border:`1.5px solid ${value.length>50?color:"#E8E7F0"}`, borderRadius:10, fontSize:13, fontFamily:"inherit", color:"#1C1A2E", resize:"vertical", outline:"none", lineHeight:1.6, transition:"border-color .2s" }}
       />
-
       {ok && (
         <div style={{ marginTop:8 }}>
           <button onClick={handleToggle} style={{
@@ -335,7 +225,6 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
             <span>{active ? "Arrêter la dictée" : "Dicter ma présentation"}</span>
             {active && <span style={{ width:8, height:8, borderRadius:"50%", background:"#fff", animation:"pulse 1s ease infinite" }}/>}
           </button>
-
           {active && interim && (
             <div style={{ marginTop:6, padding:"7px 12px", background:"#FFF3D6", borderLeft:"3px solid #C47B1A", borderRadius:"0 8px 8px 0", fontSize:12, color:"#7A4A00", fontStyle:"italic" }}>
               🎙️ {interim}
@@ -346,7 +235,6 @@ function FieldWithMic({ label, hint, value, onChange, placeholder, rows=9, color
           )}
         </div>
       )}
-
       <div style={{ fontSize:11, color:value.length>=50?"#0B6B54":"#aaa", marginTop:6, textAlign:"right" }}>
         {value.length>=50 ? `✅ ${value.length} caractères` : `${value.length} / 50 minimum`}
       </div>
@@ -422,7 +310,7 @@ function StepBar({step,filiere}) {
   </div>;
 }
 
-// ── SETUP STMG ────────────────────────────────────────────────────────────
+// ── LEVEL SELECTOR ────────────────────────────────────────────────────────
 function LevelSelector({ level, setLevel, color }) {
   const levels = [
     { id: "debutant",      label: "Débutant",      icon: "🌱", desc: "Questions accessibles, jury encourageant" },
@@ -453,6 +341,7 @@ function LevelSelector({ level, setLevel, color }) {
   );
 }
 
+// ── SETUP STMG ────────────────────────────────────────────────────────────
 function SetupSTMG({onStart,onBack}) {
   const [q,setQ]=useState(""), [t,setT]=useState(""), [level,setLevel]=useState("intermediaire");
   const c=COLORS.stmg, can=q.trim().length>10&&t.trim().length>50;
@@ -484,6 +373,7 @@ function SetupSTMG({onStart,onBack}) {
 // ── SETUP SÉRIE GÉNÉRALE ──────────────────────────────────────────────────
 function SetupGeneral({onStart,onBack}) {
   const [q,setQ]=useState(""), [t,setT]=useState(""), [s1,setS1]=useState(""), [s2,setS2]=useState(""), [level,setLevel]=useState("intermediaire");
+  const [etablissement,setEtablissement]=useState(""), [ville,setVille]=useState("");
   const c=COLORS.general, can=q.trim().length>10&&t.trim().length>50&&s1&&s2;
   return <div>
     <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:"#888",fontSize:13,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Retour</button>
@@ -502,6 +392,27 @@ function SetupGeneral({onStart,onBack}) {
         </div>
       )}
     </div>
+    <div style={{background:"#F4F3F8",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+      <div style={{fontSize:11,color:"#888",fontFamily:"monospace",letterSpacing:".06em",textTransform:"uppercase",marginBottom:12}}>
+        🏫 Votre établissement <span style={{fontWeight:400,color:"#bbb"}}>(optionnel)</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div>
+          <div style={{fontSize:11,color:"#666",marginBottom:5}}>Nom du lycée</div>
+          <input type="text" value={etablissement} onChange={e=>setEtablissement(e.target.value)}
+            placeholder="Ex : Lycée Henri IV"
+            style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${etablissement?"#9CA3AF":"#E8E7F0"}`,borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#1C1A2E",outline:"none",background:"#fff"}}
+          />
+        </div>
+        <div>
+          <div style={{fontSize:11,color:"#666",marginBottom:5}}>Ville</div>
+          <input type="text" value={ville} onChange={e=>setVille(e.target.value)}
+            placeholder="Ex : Paris"
+            style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${ville?"#9CA3AF":"#E8E7F0"}`,borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#1C1A2E",outline:"none",background:"#fff"}}
+          />
+        </div>
+      </div>
+    </div>
     <div style={{marginBottom:20}}>
       <div style={{fontSize:10,fontWeight:600,letterSpacing:".1em",textTransform:"uppercase",color:"#888",fontFamily:"monospace",marginBottom:6}}>Question de recherche</div>
       <input type="text" value={q} onChange={e=>setQ(e.target.value)}
@@ -515,7 +426,7 @@ function SetupGeneral({onStart,onBack}) {
       placeholder={"Collez ici votre présentation, ou utilisez le micro..."}
     />
     <LevelSelector level={level} setLevel={setLevel} color={c.primary}/>
-    <button onClick={()=>onStart(q.trim(),t.trim(),s1,s2,level)} disabled={!can}
+    <button onClick={()=>onStart(q.trim(),t.trim(),s1,s2,level,etablissement.trim(),ville.trim())} disabled={!can}
       style={{width:"100%",padding:"14px",background:can?c.primary:"#C8C7D4",color:"#fff",border:"none",borderRadius:12,fontSize:15,fontWeight:500,cursor:can?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all .2s"}}>
       <span>⚖️ Le jury prend la parole</span><span style={{fontSize:18}}>→</span>
     </button>
@@ -523,7 +434,7 @@ function SetupGeneral({onStart,onBack}) {
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────
-function ChatScreen({system,question,filiere,spe1,spe2,onRestart}) {
+function ChatScreen({system,question,filiere,spe1,spe2,etablissement,ville,onRestart}) {
   const [messages,setMessages]=useState([]), [history,setHistory]=useState([]);
   const [input,setInput]=useState(""), [waiting,setWaiting]=useState(false);
   const [done,setDone]=useState(false), [typing,setTyping]=useState(false), [step,setStep]=useState(1);
@@ -579,7 +490,10 @@ function ChatScreen({system,question,filiere,spe1,spe2,onRestart}) {
       <span style={{fontSize:18}}>⚖️</span>
       <div style={{flex:1}}>
         <div style={{fontStyle:"italic",color:c.primary,fontSize:13,marginBottom:3}}>« {question} »</div>
-        <div style={{fontSize:11,color:"#888",fontFamily:"monospace"}}>{filiere==="stmg"?"STMG · Économie-Gestion":`Série Générale · ${spe1} × ${spe2}`} · Académie de Bordeaux</div>
+        <div style={{fontSize:11,color:"#888",fontFamily:"monospace"}}>
+          {filiere==="stmg"?"STMG · Économie-Gestion":`Série Générale · ${spe1} × ${spe2}`} · Académie de Bordeaux
+          {etablissement && <span> · {etablissement}{ville ? `, ${ville}` : ""}</span>}
+        </div>
       </div>
     </div>
     <StepBar step={step} filiere={filiere}/>
@@ -602,7 +516,6 @@ function ChatScreen({system,question,filiere,spe1,spe2,onRestart}) {
       </div>}
       <div ref={bottomRef}/>
     </div>
-
     {!done&&!waiting&&step===2&&<div>
       <textarea value={input} onChange={e=>setInput(e.target.value)} rows={5}
         placeholder={"Répondez à chacune des 3 questions :\n\nQuestion 1 : ...\nQuestion 2 : ...\nQuestion 3 : ..."}
@@ -621,32 +534,28 @@ function ChatScreen({system,question,filiere,spe1,spe2,onRestart}) {
         <span>Envoyer mes réponses au jury</span><span>➤</span>
       </button>
     </div>}
-
     {waiting&&!done&&<div style={{textAlign:"center",color:"#888",fontSize:13,padding:"12px 0",fontStyle:"italic"}}>Le jury évalue vos réponses...</div>}
-    {done&&<FeedbackForm filiere={filiere} question={question} spe1={spe1} spe2={spe2} bilanText={messages.find(m=>m.role==="jury"&&m.text.includes("[BILAN]"))?.text||""} onRestart={onRestart} color={c.primary} colorLight={c.light}/>}
+    {done&&<FeedbackForm filiere={filiere} question={question} spe1={spe1} spe2={spe2} etablissement={etablissement} ville={ville} bilanText={messages.find(m=>m.role==="jury"&&m.text.includes("[BILAN]"))?.text||""} onRestart={onRestart} color={c.primary} colorLight={c.light}/>}
   </div>;
 }
 
 // ── FORMULAIRE FEEDBACK ───────────────────────────────────────────────────
-function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colorLight}) {
+function FeedbackForm({filiere,question,spe1,spe2,etablissement,ville,bilanText,onRestart,color,colorLight}) {
   const [notePercue, setNotePercue] = useState("");
   const [utilite,    setUtilite]    = useState("");
   const [manque,     setManque]     = useState("");
   const [sent,       setSent]       = useState(false);
   const [sending,    setSending]    = useState(false);
 
-  // Extraire la note jury automatiquement du bilan
   const noteJury = (() => {
     const m = bilanText.match(/(\d{1,2}(?:[.,]\d)?)\s*\/\s*20/);
     return m ? m[1].replace(",",".") : null;
   })();
 
-  // Envoyer feedback + tracking automatique
   useEffect(() => {
-    // On envoie un tracking minimal dès que le bilan apparaît
     fetch("/api/feedback", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ filiere, question, spe1, spe2, note_jury: noteJury }),
+      body: JSON.stringify({ filiere, question, spe1, spe2, etablissement, ville, note_jury: noteJury }),
     }).catch(()=>{});
   }, []);
 
@@ -654,20 +563,17 @@ function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colo
     setSending(true);
     await fetch("/api/feedback", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ filiere, question, spe1, spe2, note_jury: noteJury, note_percue: notePercue, utilite, manque }),
+      body: JSON.stringify({ filiere, question, spe1, spe2, etablissement, ville, note_jury: noteJury, note_percue: notePercue, utilite, manque }),
     }).catch(()=>{});
     setSending(false); setSent(true);
   }
 
   return (
     <div style={{marginTop:24}}>
-      {/* Formulaire feedback */}
       {!sent ? (
         <div style={{background:colorLight,borderRadius:14,padding:"20px",marginBottom:20,border:`1px solid ${color}22`}}>
           <div style={{fontWeight:600,fontSize:14,color:"#1C1A2E",marginBottom:4}}>💬 30 secondes de feedback</div>
           <div style={{fontSize:12,color:"#666",marginBottom:16,lineHeight:1.5}}>Tes réponses aident à améliorer le simulateur pour tous les lycéens.</div>
-
-          {/* Note perçue */}
           <div style={{marginBottom:14}}>
             <div style={{fontSize:12,fontWeight:500,color:"#1C1A2E",marginBottom:6}}>Quelle note tu penses avoir obtenu ?</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -679,8 +585,6 @@ function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colo
               ))}
             </div>
           </div>
-
-          {/* Ce qui était utile */}
           <div style={{marginBottom:14}}>
             <div style={{fontSize:12,fontWeight:500,color:"#1C1A2E",marginBottom:6}}>✅ Ce qui t'a le plus aidé</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -692,8 +596,6 @@ function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colo
               ))}
             </div>
           </div>
-
-          {/* Ce qui manque */}
           <div style={{marginBottom:16}}>
             <div style={{fontSize:12,fontWeight:500,color:"#1C1A2E",marginBottom:6}}>⚠️ Ce qui manque ou pourrait être amélioré</div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -705,7 +607,6 @@ function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colo
               ))}
             </div>
           </div>
-
           <button onClick={submit} disabled={sending}
             style={{padding:"9px 20px",background:color,color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:500,cursor:"pointer",marginRight:10}}>
             {sending?"Envoi...":"Envoyer mon feedback"}
@@ -717,11 +618,9 @@ function FeedbackForm({filiere,question,spe1,spe2,bilanText,onRestart,color,colo
         </div>
       ) : (
         <div style={{background:"#E1F5EE",borderLeft:"3px solid #0B6B54",padding:"12px 16px",borderRadius:"0 10px 10px 0",fontSize:13,color:"#062E22",marginBottom:20}}>
-          ✅ Merci pour ton feedback ! Il aidera à améliorer l'outil pour tous les lycéens.
+          ✅ Merci pour ton feedback !
         </div>
       )}
-
-      {/* Bouton recommencer */}
       <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
         <button onClick={onRestart}
           style={{padding:"10px 20px",background:"transparent",border:`1.5px solid ${color}`,color:color,borderRadius:10,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
@@ -762,8 +661,6 @@ function ChoixFiliere({onChoix}) {
   </div>;
 }
 
-// ── APP ───────────────────────────────────────────────────────────────────
-
 // ── PAGE MENTIONS LÉGALES ─────────────────────────────────────────────────
 function LegalPage({ onBack }) {
   return (
@@ -771,76 +668,24 @@ function LegalPage({ onBack }) {
       <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:"#888", fontSize:13, marginBottom:24, display:"flex", alignItems:"center", gap:6 }}>
         ← Retour
       </button>
-
       <h1 style={{ fontSize:22, fontWeight:700, color:"#1C1A2E", marginBottom:8 }}>Mentions légales & Confidentialité</h1>
       <p style={{ fontSize:12, color:"#888", marginBottom:32, fontFamily:"monospace" }}>Dernière mise à jour : mai 2026</p>
-
       {[
-        {
-          title: "1. Responsable du traitement",
-          content: `Cette application est conçue et administrée par Jenny ESTORS, Professeur d'Économie-Gestion.
-Elle est hébergée sur Vercel (vercel.com) et utilise l'API Anthropic pour générer les questions du jury.`
-        },
-        {
-          title: "2. Données collectées",
-          content: `L'application collecte uniquement les données suivantes, de façon anonyme :
-• La filière choisie (STMG ou Série Générale)
-• Le texte de votre question de gestion
-• La note indicative obtenue
-• Votre retour sur la simulation (boutons de feedback)
-• La date et l'heure de la simulation
-
-Aucun nom, prénom, email ou identifiant personnel n'est collecté.`
-        },
-        {
-          title: "3. Données vocales",
-          content: `La dictée vocale fonctionne entièrement via l'API Web Speech de votre navigateur (Chrome, Safari).
-
-✅ Aucun audio n'est enregistré ni transmis à nos serveurs.
-✅ La reconnaissance vocale est effectuée localement par votre navigateur.
-✅ Seul le texte transcrit est utilisé pour la simulation.
-
-Nous n'avons à aucun moment accès à votre voix.`
-        },
-        {
-          title: "4. Finalité du traitement",
-          content: `Les données collectées sont utilisées exclusivement pour :
-• Améliorer la qualité pédagogique de l'outil
-• Produire des statistiques anonymes d'utilisation (nombre de simulations, notes moyennes)
-• Aucune donnée n'est revendue ni partagée avec des tiers.`
-        },
-        {
-          title: "5. Durée de conservation",
-          content: `Les données anonymes sont conservées pour une durée maximale de 12 mois, puis supprimées automatiquement.`
-        },
-        {
-          title: "6. Droits des utilisateurs (RGPD)",
-          content: `Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :
-• Droit d'accès à vos données
-• Droit de rectification
-• Droit à l'effacement
-• Droit d'opposition
-
-Pour exercer ces droits, contactez : jestors@lyceelyautey.org`
-        },
-        {
-          title: "7. Cookies",
-          content: `Cette application n'utilise pas de cookies de tracking ou publicitaires.
-Seules des données de session (nombre de simulations utilisées) sont stockées localement dans votre navigateur via sessionStorage — elles sont automatiquement effacées à la fermeture de l'onglet.`
-        },
-        {
-          title: "8. Hébergement",
-          content: `L'application est hébergée par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA.
-Les données de simulation sont stockées dans Supabase (serveurs en Europe — Irlande).`
-        },
+        { title: "1. Responsable du traitement", content: `Cette application est conçue et administrée par Jenny ESTORS, Professeur d'Économie-Gestion.\nElle est hébergée sur Vercel (vercel.com) et utilise l'API Anthropic pour générer les questions du jury.` },
+        { title: "2. Données collectées", content: `L'application collecte uniquement les données suivantes, de façon anonyme :\n• La filière choisie (STMG ou Série Générale)\n• Le texte de votre question de gestion\n• La note indicative obtenue\n• Votre retour sur la simulation (boutons de feedback)\n• La date et l'heure de la simulation\n\nAucun nom, prénom, email ou identifiant personnel n'est collecté.` },
+        { title: "3. Données vocales", content: `La dictée vocale fonctionne entièrement via l'API Web Speech de votre navigateur.\n\n✅ Aucun audio n'est enregistré ni transmis à nos serveurs.\n✅ La reconnaissance vocale est effectuée localement par votre navigateur.\n✅ Seul le texte transcrit est utilisé pour la simulation.` },
+        { title: "4. Finalité du traitement", content: `Les données collectées sont utilisées exclusivement pour :\n• Améliorer la qualité pédagogique de l'outil\n• Produire des statistiques anonymes d'utilisation\n• Aucune donnée n'est revendue ni partagée avec des tiers.` },
+        { title: "5. Durée de conservation", content: `Les données anonymes sont conservées pour une durée maximale de 12 mois, puis supprimées automatiquement.` },
+        { title: "6. Droits des utilisateurs (RGPD)", content: `Conformément au RGPD, vous disposez des droits d'accès, rectification, effacement et opposition.\n\nPour exercer ces droits, contactez : jestors@lyceelyautey.org` },
+        { title: "7. Cookies", content: `Cette application n'utilise pas de cookies de tracking ou publicitaires.` },
+        { title: "8. Hébergement", content: `L'application est hébergée par Vercel Inc.\nLes données de simulation sont stockées dans Supabase (serveurs en Europe — Irlande).` },
       ].map((section, i) => (
         <div key={i} style={{ marginBottom: 28 }}>
           <h2 style={{ fontSize:15, fontWeight:700, color:"#3D2FA0", marginBottom:8 }}>{section.title}</h2>
           <p style={{ fontSize:13, color:"#333", lineHeight:1.8, whiteSpace:"pre-line" }}>{section.content}</p>
         </div>
       ))}
-
-      <div style={{ background:"#EDE9FF", borderLeft:"3px solid #3D2FA0", padding:"12px 16px", borderRadius:"0 10px 10px 0", fontSize:13, color:"#2A1F7A", lineHeight:1.6 }}>
+      <div style={{ background:"#EDE9FF", borderLeft:"3px solid #3D2FA0", padding:"12px 16px", borderRadius:"0 10px 10px 0", fontSize:13, color:"#2A1F7A" }}>
         📧 Pour toute question : <strong>jestors@lyceelyautey.org</strong>
       </div>
     </div>
@@ -864,42 +709,18 @@ function Footer({ onLegal }) {
   );
 }
 
+// ── APP ───────────────────────────────────────────────────────────────────
 export default function Home() {
   const [screen,setScreen]=useState("choix"), [filiere,setFiliere]=useState("");
   const [prevScreen,setPrevScreen]=useState("choix");
   const goLegal = () => { setPrevScreen(screen); setScreen("legal"); };
   const backFromLegal = () => setScreen(prevScreen);
   const [question,setQ]=useState(""), [trans,setT]=useState("");
-  const [spe1,setS1]=useState(""), [spe2,setS2]=useState(""), [system,setSys]=useState("");
-  const { canSimulate, useOne, addPaidCredits, totalRemaining, simCount, paidCredits } = useCredits();
+  const [spe1,setS1]=useState(""), [spe2,setS2]=useState("");
+  const [etablissement,setEtablissement]=useState(""), [ville,setVille]=useState("");
+  const [system,setSys]=useState("");
 
-  // Vérifier retour de paiement Stripe
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const payment = params.get("payment");
-    const sessionId = params.get("session_id");
-    if (payment === "success" && sessionId) {
-      fetch(`/api/verify-payment?session_id=${sessionId}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.paid) {
-            addPaidCredits(data.credits);
-            window.history.replaceState({}, "", "/");
-            setScreen("choix");
-          }
-        }).catch(() => {});
-    }
-  }, []);
-
-  function handleStart(q, t, s1, s2, sys, level) {
-    if (!canSimulate) { setScreen("payment"); return; }
-    useOne();
-    setQ(q); setT(t); setS1(s1||""); setS2(s2||""); setSys(sys);
-    setScreen("chat");
-  }
-
-  function restart() { setScreen("choix");setFiliere("");setQ("");setT("");setS1("");setS2("");setSys(""); }
+  function restart() { setScreen("choix");setFiliere("");setQ("");setT("");setS1("");setS2("");setEtablissement("");setVille("");setSys(""); }
   const c=filiere?COLORS[filiere]:COLORS.stmg;
 
   return <>
@@ -910,7 +731,6 @@ export default function Home() {
     <style>{`*{box-sizing:border-box;margin:0;padding:0}body{background:#FDFCFF;font-family:system-ui,-apple-system,sans-serif}@keyframes bounce{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-6px);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}select{appearance:auto}textarea,input{box-sizing:border-box}`}</style>
 
     <div style={{background:"#1C1A2E",position:"sticky",top:0,zIndex:10,borderBottom:`2px solid ${c.primary}`,transition:"border-color .4s"}}>
-      {/* Ligne principale */}
       <div style={{padding:"10px 18px",display:"flex",alignItems:"center",gap:12}}>
         <div style={{background:c.primary,color:"#fff",fontSize:10,fontFamily:"monospace",letterSpacing:".1em",padding:"3px 10px",borderRadius:99,transition:"background .4s",flexShrink:0}}>
           {filiere==="stmg"?"GRAND ORAL STMG":filiere==="general"?"GRAND ORAL SÉRIE GÉNÉRALE":"GRAND ORAL"}
@@ -921,14 +741,7 @@ export default function Home() {
         </div>
         <span style={{fontSize:10,color:c.mid,fontFamily:"monospace",flexShrink:0}}>Bloom · Évaluer ●</span>
       </div>
-      {/* Bandeau signature */}
-      <div style={{
-        background:"rgba(255,255,255,.04)",
-        borderTop:"1px solid rgba(255,255,255,.06)",
-        padding:"5px 18px",
-        display:"flex", alignItems:"center", justifyContent:"space-between",
-        gap:8,
-      }}>
+      <div style={{background:"rgba(255,255,255,.04)",borderTop:"1px solid rgba(255,255,255,.06)",padding:"5px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:11,color:"rgba(255,255,255,.35)",fontFamily:"monospace",letterSpacing:".04em"}}>Conçu par</span>
           <span style={{fontSize:12,fontWeight:600,color:c.mid,letterSpacing:".02em"}}>Jenny ESTORS</span>
@@ -940,22 +753,12 @@ export default function Home() {
     </div>
 
     <div style={{maxWidth:780,margin:"0 auto",padding:"22px 18px 60px"}}>
-      {screen==="choix"   && (
-        <>
-          <div style={{textAlign:"center",marginBottom:16}}>
-            <span style={{fontSize:12,color:paidCredits>0?"#0B6B54":"#6558D3",background:paidCredits>0?"#E1F5EE":"#EDE9FF",padding:"4px 12px",borderRadius:99,fontFamily:"monospace"}}>
-              {paidCredits > 0 ? `⭐ ${paidCredits} simulations restantes` : simCount >= FREE_LIMIT ? "✅ Essai gratuit terminé" : `✅ ${FREE_LIMIT - simCount} simulation${FREE_LIMIT - simCount > 1 ? "s" : ""} gratuite${FREE_LIMIT - simCount > 1 ? "s" : ""} restante${FREE_LIMIT - simCount > 1 ? "s" : ""}`}
-            </span>
-          </div>
-          <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>
-        </>
-      )}
-      {screen==="setup"   && filiere==="stmg"    && <SetupSTMG    onStart={(q,t,lvl)=>handleStart(q,t,"","",buildPromptSTMG(q,t,lvl),lvl)} onBack={()=>setScreen("choix")}/>}
-      {screen==="setup"   && filiere==="general" && <SetupGeneral onStart={(q,t,s1,s2,lvl)=>handleStart(q,t,s1,s2,buildPromptGeneral(q,t,s1,s2,lvl),lvl)} onBack={()=>setScreen("choix")}/>}
-      {screen==="chat"    && <ChatScreen system={system} question={question} filiere={filiere} spe1={spe1} spe2={spe2} onRestart={restart}/>}
-      {screen==="payment" && <PaymentWall onBack={()=>setScreen("choix")} onSuccess={()=>setScreen("choix")}/>}
+      {screen==="choix"   && <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>}
+      {screen==="setup"   && filiere==="stmg"    && <SetupSTMG    onStart={(q,t,lvl)=>{setQ(q);setT(t);setSys(buildPromptSTMG(q,t,lvl));setScreen("chat");}} onBack={()=>setScreen("choix")}/>}
+      {screen==="setup"   && filiere==="general" && <SetupGeneral onStart={(q,t,s1,s2,lvl,etab,vil)=>{setQ(q);setT(t);setS1(s1);setS2(s2);setEtablissement(etab);setVille(vil);setSys(buildPromptGeneral(q,t,s1,s2,lvl));setScreen("chat");}} onBack={()=>setScreen("choix")}/>}
+      {screen==="chat"    && <ChatScreen system={system} question={question} filiere={filiere} spe1={spe1} spe2={spe2} etablissement={etablissement} ville={ville} onRestart={restart}/>}
       {screen==="legal"   && <LegalPage onBack={backFromLegal}/>}
-      {screen!=="legal"  && <Footer onLegal={goLegal}/>}
+      {screen!=="legal"   && <Footer onLegal={goLegal}/>}
     </div>
   </>;
 }
