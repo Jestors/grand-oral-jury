@@ -701,8 +701,112 @@ function ChoixFiliere({onChoix}) {
 }
 
 // ── APP ───────────────────────────────────────────────────────────────────
+
+// ── PAGE MENTIONS LÉGALES ─────────────────────────────────────────────────
+function LegalPage({ onBack }) {
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 0 60px" }}>
+      <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:"#888", fontSize:13, marginBottom:24, display:"flex", alignItems:"center", gap:6 }}>
+        ← Retour
+      </button>
+
+      <h1 style={{ fontSize:22, fontWeight:700, color:"#1C1A2E", marginBottom:8 }}>Mentions légales & Confidentialité</h1>
+      <p style={{ fontSize:12, color:"#888", marginBottom:32, fontFamily:"monospace" }}>Dernière mise à jour : mai 2026</p>
+
+      {[
+        {
+          title: "1. Responsable du traitement",
+          content: `Cette application est conçue et administrée par Jenny ESTORS, Professeur d'Économie-Gestion.
+Elle est hébergée sur Vercel (vercel.com) et utilise l'API Anthropic pour générer les questions du jury.`
+        },
+        {
+          title: "2. Données collectées",
+          content: `L'application collecte uniquement les données suivantes, de façon anonyme :
+• La filière choisie (STMG ou Série Générale)
+• Le texte de votre question de gestion
+• La note indicative obtenue
+• Votre retour sur la simulation (boutons de feedback)
+• La date et l'heure de la simulation
+
+Aucun nom, prénom, email ou identifiant personnel n'est collecté.`
+        },
+        {
+          title: "3. Données vocales",
+          content: `La dictée vocale fonctionne entièrement via l'API Web Speech de votre navigateur (Chrome, Safari).
+
+✅ Aucun audio n'est enregistré ni transmis à nos serveurs.
+✅ La reconnaissance vocale est effectuée localement par votre navigateur.
+✅ Seul le texte transcrit est utilisé pour la simulation.
+
+Nous n'avons à aucun moment accès à votre voix.`
+        },
+        {
+          title: "4. Finalité du traitement",
+          content: `Les données collectées sont utilisées exclusivement pour :
+• Améliorer la qualité pédagogique de l'outil
+• Produire des statistiques anonymes d'utilisation (nombre de simulations, notes moyennes)
+• Aucune donnée n'est revendue ni partagée avec des tiers.`
+        },
+        {
+          title: "5. Durée de conservation",
+          content: `Les données anonymes sont conservées pour une durée maximale de 12 mois, puis supprimées automatiquement.`
+        },
+        {
+          title: "6. Droits des utilisateurs (RGPD)",
+          content: `Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :
+• Droit d'accès à vos données
+• Droit de rectification
+• Droit à l'effacement
+• Droit d'opposition
+
+Pour exercer ces droits, contactez : jestors@lyceelyautey.org`
+        },
+        {
+          title: "7. Cookies",
+          content: `Cette application n'utilise pas de cookies de tracking ou publicitaires.
+Seules des données de session (nombre de simulations utilisées) sont stockées localement dans votre navigateur via sessionStorage — elles sont automatiquement effacées à la fermeture de l'onglet.`
+        },
+        {
+          title: "8. Hébergement",
+          content: `L'application est hébergée par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA.
+Les données de simulation sont stockées dans Supabase (serveurs en Europe — Irlande).`
+        },
+      ].map((section, i) => (
+        <div key={i} style={{ marginBottom: 28 }}>
+          <h2 style={{ fontSize:15, fontWeight:700, color:"#3D2FA0", marginBottom:8 }}>{section.title}</h2>
+          <p style={{ fontSize:13, color:"#333", lineHeight:1.8, whiteSpace:"pre-line" }}>{section.content}</p>
+        </div>
+      ))}
+
+      <div style={{ background:"#EDE9FF", borderLeft:"3px solid #3D2FA0", padding:"12px 16px", borderRadius:"0 10px 10px 0", fontSize:13, color:"#2A1F7A", lineHeight:1.6 }}>
+        📧 Pour toute question : <strong>jestors@lyceelyautey.org</strong>
+      </div>
+    </div>
+  );
+}
+
+// ── FOOTER ────────────────────────────────────────────────────────────────
+function Footer({ onLegal }) {
+  return (
+    <div style={{ borderTop:"1px solid #E8E7F0", marginTop:40, padding:"16px 0", textAlign:"center" }}>
+      <p style={{ fontSize:11, color:"#aaa", marginBottom:6 }}>
+        Conçu par <strong style={{ color:"#3D2FA0" }}>Jenny ESTORS</strong> · Professeur d'Économie-Gestion · © 2026
+      </p>
+      <p style={{ fontSize:11, color:"#aaa" }}>
+        🔒 Aucun audio enregistré · Données anonymes uniquement ·{" "}
+        <button onClick={onLegal} style={{ background:"none", border:"none", cursor:"pointer", color:"#3D2FA0", fontSize:11, textDecoration:"underline", padding:0 }}>
+          Mentions légales & Confidentialité
+        </button>
+      </p>
+    </div>
+  );
+}
+
 export default function Home() {
   const [screen,setScreen]=useState("choix"), [filiere,setFiliere]=useState("");
+  const [prevScreen,setPrevScreen]=useState("choix");
+  const goLegal = () => { setPrevScreen(screen); setScreen("legal"); };
+  const backFromLegal = () => setScreen(prevScreen);
   const [question,setQ]=useState(""), [trans,setT]=useState("");
   const [spe1,setS1]=useState(""), [spe2,setS2]=useState(""), [system,setSys]=useState("");
   const { canSimulate, useOne, addPaidCredits, totalRemaining, simCount, paidCredits } = useCredits();
@@ -769,7 +873,7 @@ export default function Home() {
           <span style={{width:3,height:3,borderRadius:"50%",background:"rgba(255,255,255,.2)",display:"inline-block"}}/>
           <span style={{fontSize:11,color:"rgba(255,255,255,.4)",fontStyle:"italic"}}>Professeur d'Économie-Gestion</span>
         </div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,.2)",fontFamily:"monospace"}}>© 2025</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,.2)",fontFamily:"monospace"}}>© 2026</div>
       </div>
     </div>
 
