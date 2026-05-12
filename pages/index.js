@@ -143,18 +143,80 @@ const buildPromptSTMG = (q,t,level="intermediaire") => `Tu es un jury de grand o
 L'élève présente la question : ${q}
 Transcription : ${t}
 VERSION COMPACTE — 2 échanges max.
+
 ${DIFFICULTY_INSTRUCTIONS[level]}
-ÉCHANGE 1 — [Q1] · [Q2] · [Q3] · Termine par "Prenez le temps de répondre à chacune."
-ÉCHANGE 2 — Évalue chaque réponse · Très insuffisant/Insuffisant/Satisfaisant/Très satisfaisant sur : Interaction, Connaissances, Argumentation · Note /20 · 3 axes d'amélioration.
-FORMAT : [Q1] [Q2] [Q3] pour questions — [BILAN] pour bilan final.`;
+
+ÉCHANGE 1 — Pose les 3 questions selon le niveau ci-dessus.
+[Q1] · [Q2] · [Q3] · Termine par "Prenez le temps de répondre à chacune."
+
+ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
+
+FORMAT DU BILAN OBLIGATOIRE — identique quel que soit le niveau :
+[BILAN]
+## Évaluation de chaque réponse
+**Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
+**Q2 :** [Ce qui est solide] / [Ce qui peut progresser]
+**Q3 :** [Ce qui est solide] / [Ce qui peut progresser]
+
+## Évaluation globale — Grille officielle Académie de Bordeaux
+| Dimension | Niveau |
+|---|---|
+| Qualité orale (voix, regard, posture) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Prise de parole en continu (Temps 1) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité des connaissances | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'interaction (Temps 2) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'argumentation | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+
+## Note indicative sur 20
+- **Présentation initiale (Temps 1)** : X/10 — [justification courte]
+- **Échange avec le jury (Temps 2)** : X/10 — [justification courte]
+- **Note globale** : X/20
+
+## 3 axes d'amélioration prioritaires
+1. [Axe 1 concret et actionnable]
+2. [Axe 2 concret et actionnable]
+3. [Axe 3 concret et actionnable]
+
+FORMAT BALISES : [Q1] [Q2] [Q3] pour les questions — [BILAN] pour commencer le bilan.`;
 
 const buildPromptGeneral = (q,t,s1,s2,level="intermediaire") => `Tu es un jury de grand oral Terminale Série Générale composé de deux examinateurs : un professeur de ${s1} et un jury naïf, conformément à la grille officielle de l'Académie de Bordeaux.
 Spécialités : ${s1} × ${s2}. Question : ${q}. Présentation : ${t}
 VERSION COMPACTE — 2 échanges max.
+
 ${DIFFICULTY_INSTRUCTIONS[level]}
-ÉCHANGE 1 — [Q1] mobilise les savoirs de ${s1} · [Q2] articulation entre ${s1} et ${s2} · [Q3] tension théorie/réalité · Termine par "Prenez le temps de répondre à chacune."
-ÉCHANGE 2 — Évalue chaque réponse · Très insuffisant/Insuffisant/Satisfaisant/Très satisfaisant sur : Interaction, Connaissances, Argumentation · Note /20 · 3 axes d'amélioration.
-FORMAT : [Q1] [Q2] [Q3] pour questions — [BILAN] pour bilan final.`;
+
+ÉCHANGE 1 — Pose les 3 questions selon le niveau ci-dessus.
+[Q1] mobilise les savoirs de ${s1} · [Q2] articulation entre ${s1} et ${s2} · [Q3] tension théorie/réalité · Termine par "Prenez le temps de répondre à chacune."
+
+ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
+
+FORMAT DU BILAN OBLIGATOIRE — identique quel que soit le niveau :
+[BILAN]
+## Évaluation de chaque réponse
+**Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
+**Q2 :** [Ce qui est solide] / [Ce qui peut progresser]
+**Q3 :** [Ce qui est solide] / [Ce qui peut progresser]
+
+## Évaluation globale — Grille officielle Académie de Bordeaux
+| Dimension | Niveau |
+|---|---|
+| Qualité orale (voix, regard, posture) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Prise de parole en continu (Temps 1) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité des connaissances | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'interaction (Temps 2) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'argumentation | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+
+## Note indicative sur 20
+- **Présentation initiale (Temps 1)** : X/10 — [justification courte]
+- **Échange avec le jury (Temps 2)** : X/10 — [justification courte]
+- **Note globale** : X/20
+
+## 3 axes d'amélioration prioritaires
+1. [Axe 1 concret et actionnable]
+2. [Axe 2 concret et actionnable]
+3. [Axe 3 concret et actionnable]
+
+FORMAT BALISES : [Q1] [Q2] [Q3] pour les questions — [BILAN] pour commencer le bilan.`;
 
 async function callJury(system, messages) {
   const res = await fetch("/api/jury", {
