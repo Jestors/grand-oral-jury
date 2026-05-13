@@ -28,35 +28,58 @@ export default async function handler(req, res) {
   }
 
   try {
-    const base = `${supabaseUrl}/rest/v1/simulations`;
     const headers = {
       "apikey": supabaseKey,
       "Authorization": `Bearer ${supabaseKey}`,
     };
 
+    // Requête 1 — Compte exact de TOUTES les simulations
+    const countRes = await fetch(
+      `${supabaseUrl}/rest/v1/simulations?select=id`,
+      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
+    );
+    const total = parseInt(countRes.headers.get("Content-Range")?.split("/")[1] || "0");
+
+    // Requête 2 — Compte STMG
+    const stmgRes = await fetch(
+      `${supabaseUrl}/rest/v1/simulations?filiere=eq.stmg&select=id`,
+      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
+    );
+    const stmg = parseInt(stmgRes.headers.get("Content-Range")?.split("/")[1] || "0");
+
+    // Requête 3 — Compte Série Générale
+    const genRes = await fetch(
+      `${supabaseUrl}/rest/v1/simulations?filiere=eq.general&select=id`,
+      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
+    );
+    const general = parseInt(genRes.headers.get("Content-Range")?.split("/")[1] || "0");
+
+    // Requête 4 — 20 derniers feedbacks
     const feedRes = await fetch(
-  `${base}?select=filiere,question,spe1,spe2,etablissement,ville,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=50`,
-  { headers }
-);
+      `${supabaseUrl}/rest/v1/simulations?select=filiere,question,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=20`,
+      { headers }
+    );
     const feedbacks = await feedRes.json();
 
-    if (!Array.isArray(feedbacks)) {
-      return res.status(500).json({ error: "Erreur Supabase", detail: feedbacks });
-    }
-
-    const total   = feedbacks.length;
-    const stmg    = feedbacks.filter(f => f.filiere === "stmg").length;
-    const general = feedbacks.filter(f => f.filiere === "general").length;
-    const notes   = feedbacks.filter(f => f.note_jury).map(f => parseFloat(f.note_jury));
-    const noteMoyenne = notes.length
-      ? (notes.reduce((a, b) => a + b, 0) / notes.length).toFixed(1)
+    // Requête 5 — Note moyenne sur toutes les simulations
+    const notesRes = await fetch(
+      `${supabaseUrl}/rest/v1/simulations?select=note_jury&note_jury=not.is.null`,
+      { headers }
+    );
+    const notes = await notesRes.json();
+    const noteMoyenne = Array.isArray(notes) && notes.length
+      ? (notes.reduce((a, b) => a + parseFloat(b.note_jury || 0), 0) / notes.length).toFixed(1)
       : null;
 
     return res.status(200).json({
-      mode: "live", total, stmg, general,
+      mode: "live",
+      total,
+      stmg,
+      general,
       note_moyenne: noteMoyenne,
-      feedbacks_recents: feedbacks
+      feedbacks_recents: Array.isArray(feedbacks) ? feedbacks : [],
     });
+
   } catch (e) {
     console.error("Stats error:", e);
     return res.status(500).json({ error: e.message });
