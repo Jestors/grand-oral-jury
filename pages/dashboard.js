@@ -1,8 +1,5 @@
 // pages/dashboard.js
-// Tableau de bord privé — accessible via /dashboard?pwd=TON_MOT_DE_PASSE
-// Configure DASHBOARD_PASSWORD dans Vercel Environment Variables
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Head from "next/head";
 
 function StatCard({ icon, label, value, sub, color="#3D2FA0" }) {
@@ -41,9 +38,9 @@ function FeedbackRow({ fb, i }) {
         <span style={{fontSize:11,color:"#888",flexShrink:0,fontFamily:"monospace"}}>{date}</span>
       </div>
 
-      {/* Ligne 2 : spécialités (Série Générale uniquement) */}
-      {isGeneral && (fb.spe1 || fb.spe2) && (
-        <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
+      {/* Ligne 2 : spécialités + établissement */}
+      {(fb.spe1 || fb.spe2 || fb.etablissement || fb.ville) && (
+        <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap",alignItems:"center"}}>
           {fb.spe1 && (
             <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,background:"#E1F5EE",color:"#0B6B54",fontWeight:500}}>
               📗 {fb.spe1}
@@ -54,7 +51,6 @@ function FeedbackRow({ fb, i }) {
               📘 {fb.spe2}
             </span>
           )}
-          {/* Établissement + ville si renseignés */}
           {(fb.etablissement || fb.ville) && (
             <span style={{fontSize:11,color:"#888",fontStyle:"italic"}}>
               🏫 {[fb.etablissement, fb.ville].filter(Boolean).join(", ")}
@@ -121,7 +117,6 @@ export default function Dashboard() {
       <Head><title>Dashboard — Jenny ESTORS</title></Head>
       <style>{`*{box-sizing:border-box;margin:0;padding:0}body{background:#F4F3F8;font-family:system-ui,sans-serif}`}</style>
 
-      {/* Header */}
       <div style={{background:"#1C1A2E",padding:"14px 24px",display:"flex",alignItems:"center",gap:12,borderBottom:"2px solid #3D2FA0"}}>
         <div style={{flex:1}}>
           <div style={{color:"#fff",fontSize:15,fontWeight:600}}>📊 Dashboard · Simulateur Jury</div>
@@ -136,11 +131,10 @@ export default function Dashboard() {
 
         {data?.mode==="demo" && (
           <div style={{background:"#FFF3D6",borderLeft:"3px solid #C47B1A",padding:"10px 14px",borderRadius:"0 10px 10px 0",fontSize:13,color:"#7A4A00",marginBottom:20}}>
-            ⚠️ Mode démo — Supabase non configuré. Les données ne sont pas encore enregistrées. Suivez le guide de configuration ci-dessous.
+            ⚠️ Mode démo — Supabase non configuré.
           </div>
         )}
 
-        {/* Stats globales */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16,marginBottom:28}}>
           <StatCard icon="🎓" label="Simulations totales" value={data?.total} sub="Depuis le lancement" color="#3D2FA0"/>
           <StatCard icon="📊" label="STMG" value={data?.stmg} sub={data?.total?`${Math.round((data.stmg/data.total)*100)}% du total`:null} color="#3D2FA0"/>
@@ -148,7 +142,6 @@ export default function Dashboard() {
           <StatCard icon="⭐" label="Note moyenne /20" value={data?.note_moyenne} sub="Toutes filières" color="#C47B1A"/>
         </div>
 
-        {/* Feedbacks récents */}
         <div style={{background:"#fff",borderRadius:14,border:"1.5px solid #E8E7F0",overflow:"hidden",marginBottom:28}}>
           <div style={{padding:"14px 16px",borderBottom:"1px solid #E8E7F0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{fontWeight:600,fontSize:14,color:"#1C1A2E"}}>💬 Simulations récentes</div>
@@ -160,15 +153,14 @@ export default function Dashboard() {
           }
         </div>
 
-        {/* Guide de configuration Supabase */}
         {data?.mode==="demo" && (
           <div style={{background:"#fff",borderRadius:14,border:"1.5px solid #E8E7F0",padding:"20px 24px"}}>
             <div style={{fontWeight:600,fontSize:14,color:"#1C1A2E",marginBottom:16}}>🔧 Configurer Supabase (gratuit — 5 minutes)</div>
             {[
               ["1. Créer un compte Supabase", "Va sur supabase.com → New Project → nomme-le 'grand-oral'"],
-              ["2. Créer la table", `Dans l'éditeur SQL de Supabase, colle et exécute :\n\nCREATE TABLE simulations (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  filiere text,\n  question text,\n  spe1 text,\n  spe2 text,\n  etablissement text,\n  ville text,\n  note_percue text,\n  note_jury text,\n  utilite text,\n  manque text,\n  created_at timestamptz DEFAULT now()\n);`],
+              ["2. Créer la table", `CREATE TABLE simulations (\n  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,\n  filiere text,\n  question text,\n  spe1 text,\n  spe2 text,\n  etablissement text,\n  ville text,\n  note_percue text,\n  note_jury text,\n  utilite text,\n  manque text,\n  created_at timestamptz DEFAULT now()\n);`],
               ["3. Récupérer les clés", "Settings → API → copie 'Project URL' et 'anon public key'"],
-              ["4. Ajouter dans Vercel", "Settings → Environment Variables :\n• SUPABASE_URL = https://xxxx.supabase.co\n• SUPABASE_ANON_KEY = eyJ...\n• DASHBOARD_PASSWORD = ton mot de passe"],
+              ["4. Ajouter dans Vercel", "SUPABASE_URL, SUPABASE_ANON_KEY, DASHBOARD_PASSWORD"],
             ].map(([title, content], i) => (
               <div key={i} style={{marginBottom:16}}>
                 <div style={{fontWeight:500,fontSize:13,color:"#3D2FA0",marginBottom:4}}>{title}</div>
