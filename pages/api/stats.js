@@ -5,19 +5,17 @@ export default async function handler(req, res) {
 
   const dashPwd =
     process.env.DASHBOARD_PASSWORD ||
-    process.env["TABLEAU DE BORD_MOT_DE_PASSE"] ||
     process.env.TABLEAU_DE_BORD_MOT_DE_PASSE ||
     "JennyGO2025";
 
   const supabaseUrl =
     process.env.SUPABASE_URL ||
-    process.env["URL SUPABASE"] ||
     process.env.URL_SUPABASE;
 
   const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
   if (pwd !== dashPwd) {
-    return res.status(401).json({ error: "Non autorisé" });
+    return res.status(401).json({ error: "Non autorise" });
   }
 
   if (!supabaseUrl || !supabaseKey) {
@@ -28,56 +26,56 @@ export default async function handler(req, res) {
   }
 
   try {
+    const base = `${supabaseUrl}/rest/v1/simulations`;
     const headers = {
       "apikey": supabaseKey,
       "Authorization": `Bearer ${supabaseKey}`,
+      "Prefer": "count=exact",
     };
 
-    // Requête 1 — Compte exact de TOUTES les simulations
-    const countRes = await fetch(
-      `${supabaseUrl}/rest/v1/simulations?select=id`,
-      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
-    );
-    const total = parseInt(countRes.headers.get("Content-Range")?.split("/")[1] || "0");
+    // 1. Total exact
+    const totalRes = await fetch(`${base}?select=id&limit=1`, { headers });
+    const contentRange = totalRes.headers.get("content-range");
+    const total = contentRange ? parseInt(contentRange.split("/")[1]) : 0;
 
-    // Requête 2 — Compte STMG
-    const stmgRes = await fetch(
-      `${supabaseUrl}/rest/v1/simulations?filiere=eq.stmg&select=id`,
-      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
-    );
-    const stmg = parseInt(stmgRes.headers.get("Content-Range")?.split("/")[1] || "0");
+    // 2. Total STMG exact
+    const stmgRes = await fetch(`${base}?select=id&filiere=eq.stmg&limit=1`, { headers });
+    const stmgRange = stmgRes.headers.get("content-range");
+    const stmg = stmgRange ? parseInt(stmgRange.split("/")[1]) : 0;
 
-    // Requête 3 — Compte Série Générale
-    const genRes = await fetch(
-      `${supabaseUrl}/rest/v1/simulations?filiere=eq.general&select=id`,
-      { headers: { ...headers, "Prefer": "count=exact", "Range": "0-0" } }
-    );
-    const general = parseInt(genRes.headers.get("Content-Range")?.split("/")[1] || "0");
+    // 3. Total General exact
+    const generalRes = await fetch(`${base}?select=id&filiere=eq.general&limit=1`, { headers });
+    const generalRange = generalRes.headers.get("content-range");
+    const general = generalRange ? parseInt(generalRange.split("/")[1]) : 0;
 
-    // Requête 4 — 20 derniers feedbacks
+    // 4. Note moyenne
+    const notesRes = await fetch(
+      `${base}?select=note_jury&note_jury=not.is.null&limit=500`,
+      { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` } }
+    );
+    const notesData = await notesRes.json();
+    const notes = Array.isArray(notesData)
+      ? notesData.map(f => parseFloat(f.note_jury)).filter(n => !isNaN(n))
+      : [];
+    const noteMoyenne = notes.length
+      ? (notes.reduce((a, b) => a + b, 0) / notes.length).toFixed(1)
+      : null;
+
+    // 5. 20 derniers feedbacks avec toutes les colonnes
     const feedRes = await fetch(
-      `${supabaseUrl}/rest/v1/simulations?select=filiere,question,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=20`,
-      { headers }
+      `${base}?select=filiere,question,spe1,spe2,etablissement,ville,note_percue,note_jury,utilite,manque,created_at&order=created_at.desc&limit=20`,
+      { headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` } }
     );
     const feedbacks = await feedRes.json();
 
-    // Requête 5 — Note moyenne sur toutes les simulations
-    const notesRes = await fetch(
-      `${supabaseUrl}/rest/v1/simulations?select=note_jury&note_jury=not.is.null`,
-      { headers }
-    );
-    const notes = await notesRes.json();
-    const noteMoyenne = Array.isArray(notes) && notes.length
-      ? (notes.reduce((a, b) => a + parseFloat(b.note_jury || 0), 0) / notes.length).toFixed(1)
-      : null;
+    if (!Array.isArray(feedbacks)) {
+      return res.status(500).json({ error: "Erreur Supabase", detail: feedbacks });
+    }
 
     return res.status(200).json({
-      mode: "live",
-      total,
-      stmg,
-      general,
+      mode: "live", total, stmg, general,
       note_moyenne: noteMoyenne,
-      feedbacks_recents: Array.isArray(feedbacks) ? feedbacks : [],
+      feedbacks_recents: feedbacks
     });
 
   } catch (e) {
