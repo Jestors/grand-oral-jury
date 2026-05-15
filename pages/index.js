@@ -10,6 +10,198 @@ const SPECIALITES = [
   "Sciences Politiques","Droit et Grandes Questions du Monde Contemporain",
 ];
 
+// ── CONSTANTES CRÉDITS ────────────────────────────────────────────────────
+const FREE_LIMIT = 2;
+const PAID_CREDITS = 20;
+
+// ── MODAL EMAIL ───────────────────────────────────────────────────────────
+function EmailModal({ onConfirmed }) {
+  const [email, setEmail]     = useState("");
+  const [error, setError]     = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    const val = email.trim().toLowerCase();
+    if (!val || !val.includes("@") || !val.includes(".")) {
+      setError("Adresse email invalide.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const res  = await fetch("/api/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: val }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur serveur");
+      localStorage.setItem("go_email", val);
+      onConfirmed({ email: val, ...data });
+    } catch (e) {
+      setError("Erreur serveur — réessayez.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,.72)",
+      display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999,
+    }}>
+      <div style={{
+        background:"#fff", borderRadius:20, padding:"36px 28px",
+        maxWidth:420, width:"90%", textAlign:"center",
+        boxShadow:"0 24px 64px rgba(0,0,0,.3)",
+      }}>
+        <div style={{ fontSize:38, marginBottom:12 }}>🎓</div>
+        <h2 style={{ fontSize:20, fontWeight:700, color:"#1C1A2E", marginBottom:8 }}>
+          Bienvenue sur le simulateur<br/>Grand Oral
+        </h2>
+        <p style={{ fontSize:13, color:"#666", marginBottom:24, lineHeight:1.7 }}>
+          Entrez votre email pour accéder à vos <strong>2 simulations gratuites</strong>
+          <br/>et retrouver votre accès sur tous vos appareils.
+        </p>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="prenom.nom@lycee.fr"
+          autoComplete="email"
+          style={{
+            width:"100%", padding:"11px 14px", fontSize:14,
+            border:`2px solid ${error ? "#DC2626" : "#E8E7F0"}`,
+            borderRadius:10, outline:"none", boxSizing:"border-box",
+            marginBottom:8, fontFamily:"inherit",
+            transition:"border-color .2s",
+          }}
+        />
+        {error && <p style={{ color:"#DC2626", fontSize:12, marginBottom:8 }}>{error}</p>}
+        <button
+          onClick={submit}
+          disabled={loading}
+          style={{
+            width:"100%", padding:"13px", background: loading ? "#9CA3AF" : "#6558D3",
+            color:"#fff", border:"none", borderRadius:10, fontSize:15,
+            fontWeight:600, cursor: loading ? "not-allowed" : "pointer",
+            marginTop:4, transition:"background .2s",
+          }}
+        >
+          {loading ? "Vérification…" : "Commencer →"}
+        </button>
+        <p style={{ fontSize:11, color:"#bbb", marginTop:14, lineHeight:1.6 }}>
+          Pas de spam. Email utilisé uniquement pour gérer vos simulations.<br/>
+          Conforme RGPD — voir mentions légales.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── HOOK CREDITS (serveur) ────────────────────────────────────────────────
+function useCredits(userEmail) {
+  // simCount & isPaid viennent du serveur via check-user, on les stocke localement
+  // comme cache d'affichage. La vraie limite est vérifiée dans use-simulation côté serveur.
+  const [simCount,    setSimCount]    = useState(0);
+  const [isPaid,      setIsPaid]      = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  // Hydratation depuis les données renvoyées par check-user
+  function hydrate({ simulations_used, is_paid }) {
+    setSimCount(simulations_used ?? 0);
+    setIsPaid(is_paid ?? false);
+    setInitialized(true);
+  }
+
+  const totalRemaining = isPaid ? PAID_CREDITS : Math.max(0, FREE_LIMIT - simCount);
+  const canSimulate    = isPaid || simCount < FREE_LIMIT;
+
+  // Appel use-simulation avant de lancer : retourne true si autorisé
+  async function useOne() {
+    if (!userEmail) return false;
+    try {
+      const res  = await fetch("/api/use-simulation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+      const data = await res.json();
+      if (res.status === 403 || data.limit_reached) return false;
+      if (res.ok) {
+        setSimCount(data.simulations_used);
+        setIsPaid(data.is_paid);
+        return true;
+      }
+      return false;
+    } catch { return false; }
+  }
+
+  function markPaid() {
+    setIsPaid(true);
+    setSimCount(0);
+  }
+
+  return { simCount, isPaid, totalRemaining, canSimulate, useOne, hydrate, initialized, markPaid };
+}
+
+// ── PAYWALL ───────────────────────────────────────────────────────────────
+function PaymentWall({ onBack, email }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handlePay() {
+    setLoading(true);
+    try {
+      const res  = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      alert("Erreur de paiement — réessayez.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ maxWidth:480, margin:"40px auto", padding:"0 20px" }}>
+      <div style={{ background:"#1C1A2E", borderRadius:20, padding:"32px 28px", color:"#fff", textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>⚖️</div>
+        <h2 style={{ fontSize:22, fontWeight:700, marginBottom:8 }}>
+          Tu as utilisé tes 2 simulations gratuites
+        </h2>
+        <p style={{ fontSize:14, color:"#9A8EF5", marginBottom:24, lineHeight:1.6 }}>
+          Continue à t'entraîner sans limite jusqu'au 11 juillet pour être prêt le jour J.
+        </p>
+        <div style={{ background:"rgba(255,255,255,.06)", borderRadius:14, padding:"20px", marginBottom:24 }}>
+          <div style={{ fontSize:36, fontWeight:700, color:"#9A8EF5" }}>4,99 €</div>
+          <div style={{ fontSize:13, color:"#888", marginTop:4 }}>paiement unique · accès jusqu'au 11 juillet</div>
+          <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:8 }}>
+            {["Simulations illimitées","STMG & Série Générale","3 niveaux de difficulté","Note sur 20 + axes d'amélioration","Dictée vocale incluse"].map((f,i) => (
+              <div key={i} style={{ fontSize:13, color:"#C4BDFF", display:"flex", alignItems:"center", gap:8, textAlign:"left" }}>
+                <span style={{ color:"#6558D3" }}>✓</span> {f}
+              </div>
+            ))}
+          </div>
+        </div>
+        <button onClick={handlePay} disabled={loading}
+          style={{ width:"100%", padding:"14px", background:"#6558D3", border:"none", borderRadius:12, color:"#fff", fontSize:16, fontWeight:600, cursor:loading?"not-allowed":"pointer", marginBottom:12 }}>
+          {loading ? "Redirection..." : "Accès illimité pour 4,99 €"}
+        </button>
+        <button onClick={onBack}
+          style={{ background:"none", border:"none", color:"#555", fontSize:13, cursor:"pointer" }}>
+          ← Retour
+        </button>
+      </div>
+      <div style={{ textAlign:"center", marginTop:16, fontSize:11, color:"#aaa" }}>
+        🔒 Paiement sécurisé par Stripe · Conçu par Jenny ESTORS
+      </div>
+    </div>
+  );
+}
+
 const COLORS = {
   stmg:    { primary:"#3D2FA0", light:"#EDE9FF", mid:"#6558D3", dark:"#1C1A2E" },
   general: { primary:"#0B6B54", light:"#E1F5EE", mid:"#1D9E75", dark:"#062E22" },
@@ -56,35 +248,45 @@ ${DIFFICULTY_INSTRUCTIONS[level]}
 
 ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
 
-FORMAT DU BILAN OBLIGATOIRE :
+FORMAT DU BILAN OBLIGATOIRE — conforme à la grille officielle BO n°36 du 28 septembre 2023 (MENE2323117N) :
 [BILAN]
-## Évaluation de chaque réponse
+
+## Évaluation de chaque réponse du jury
 **Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
 **Q2 :** [Ce qui est solide] / [Ce qui peut progresser]
 **Q3 :** [Ce qui est solide] / [Ce qui peut progresser]
 
-## Évaluation globale — Grille officielle Académie de Bordeaux
-| Dimension | Niveau |
+## Évaluation globale — Grille indicative officielle (BO 2023)
+| Critère | Niveau |
 |---|---|
-| Qualité orale (voix, regard, posture) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Prise de parole en continu (Temps 1) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité des connaissances | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité de l'interaction (Temps 2) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité de l'argumentation | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité orale de l'épreuve (voix, regard, posture, vocabulaire) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de la prise de parole en continu — Temps 1 (clarté, structure, fluidité) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité des connaissances (solidité, précision, esprit critique) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'interaction — Temps 2 (écoute, reformulation, initiative) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité et construction de l'argumentation (cohérence, conviction, lien savoirs) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
 
-## Note indicative sur 20
-- **Présentation initiale (Temps 1)** : X/10 — [justification courte]
-- **Échange avec le jury (Temps 2)** : X/10 — [justification courte]
-- **Note globale** : X/20
+## Profil et note indicative sur 20
+Détermine le profil selon la grille officielle :
+- Profil 1 — Majorité Très satisfaisant → 16 à 20
+- Profil 2 — Majorité Satisfaisant → 12 à 16 (uniquement Satisfaisant : autour de 14)
+- Profil 3 — Mélange Satisfaisant/Insuffisant → 8 à 12
+- Profil 4 — Majorité Insuffisant → 4 à 8
+- Profil 5 — Majorité Très insuffisant → 0 à 4
+
+**Présentation initiale — Temps 1 (10 min)** : X/20 — [justification en 1 phrase sur la qualité orale et l'argumentation]
+**Échange avec le jury — Temps 2 (10 min)** : X/20 — [justification en 1 phrase sur l'interaction et les connaissances mobilisées]
+**Note globale** : X/20 — Profil [numéro] — [une phrase de justification globale]
 
 ## 3 axes d'amélioration prioritaires
-1. [Axe 1 concret et actionnable]
-2. [Axe 2 concret et actionnable]
-3. [Axe 3 concret et actionnable]
+1. [Axe 1 — concret, actionnable, lié à un critère de la grille]
+2. [Axe 2 — concret, actionnable, lié à un critère de la grille]
+3. [Axe 3 — concret, actionnable, lié à un critère de la grille]
+
+Source : Grille indicative BO n°36 du 28 septembre 2023 — MENE2323117N
 
 FORMAT BALISES : [Q1] [Q2] [Q3] pour les questions — [BILAN] pour commencer le bilan.`;
 
-const buildPromptGeneral = (q,t,s1,s2,level="intermediaire") => `Tu es un jury de grand oral Terminale Série Générale composé de deux examinateurs : un professeur de ${s1} et un jury naïf, conformément à la grille officielle de l'Académie de Bordeaux.
+const buildPromptGeneral = (q,t,s1,s2,level="intermediaire") => `Tu es un jury de grand oral Terminale Série Générale composé de deux examinateurs : un professeur de ${s1} et un jury naïf, conformément à la grille officielle d'évaluation du Grand Oral — BO n°36 du 28 septembre 2023 (MENE2323117N).
 Spécialités : ${s1} × ${s2}. Question : ${q}. Présentation : ${t}
 VERSION COMPACTE — 2 échanges max.
 
@@ -95,31 +297,41 @@ ${DIFFICULTY_INSTRUCTIONS[level]}
 
 ÉCHANGE 2 — Après les réponses de l'élève, produis le bilan complet en respectant EXACTEMENT ce format :
 
-FORMAT DU BILAN OBLIGATOIRE :
+FORMAT DU BILAN OBLIGATOIRE — conforme à la grille officielle BO n°36 du 28 septembre 2023 (MENE2323117N) :
 [BILAN]
-## Évaluation de chaque réponse
+
+## Évaluation de chaque réponse du jury
 **Q1 :** [Ce qui est solide] / [Ce qui peut progresser]
 **Q2 :** [Ce qui est solide] / [Ce qui peut progresser]
 **Q3 :** [Ce qui est solide] / [Ce qui peut progresser]
 
-## Évaluation globale — Grille officielle Académie de Bordeaux
-| Dimension | Niveau |
+## Évaluation globale — Grille indicative officielle (BO 2023)
+| Critère | Niveau |
 |---|---|
-| Qualité orale (voix, regard, posture) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Prise de parole en continu (Temps 1) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité des connaissances | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité de l'interaction (Temps 2) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
-| Qualité de l'argumentation | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité orale de l'épreuve (voix, regard, posture, vocabulaire) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de la prise de parole en continu — Temps 1 (clarté, structure, fluidité) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité des connaissances (solidité, précision, esprit critique) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité de l'interaction — Temps 2 (écoute, reformulation, initiative) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
+| Qualité et construction de l'argumentation (cohérence, conviction, lien savoirs) | Très insuffisant / Insuffisant / Satisfaisant / Très satisfaisant |
 
-## Note indicative sur 20
-- **Présentation initiale (Temps 1)** : X/10 — [justification courte]
-- **Échange avec le jury (Temps 2)** : X/10 — [justification courte]
-- **Note globale** : X/20
+## Profil et note indicative sur 20
+Détermine le profil selon la grille officielle :
+- Profil 1 — Majorité Très satisfaisant → 16 à 20
+- Profil 2 — Majorité Satisfaisant → 12 à 16 (uniquement Satisfaisant : autour de 14)
+- Profil 3 — Mélange Satisfaisant/Insuffisant → 8 à 12
+- Profil 4 — Majorité Insuffisant → 4 à 8
+- Profil 5 — Majorité Très insuffisant → 0 à 4
+
+**Présentation initiale — Temps 1 (10 min)** : X/20 — [justification en 1 phrase sur la qualité orale et l'argumentation]
+**Échange avec le jury — Temps 2 (10 min)** : X/20 — [justification en 1 phrase sur l'interaction et les connaissances mobilisées]
+**Note globale** : X/20 — Profil [numéro] — [une phrase de justification globale]
 
 ## 3 axes d'amélioration prioritaires
-1. [Axe 1 concret et actionnable]
-2. [Axe 2 concret et actionnable]
-3. [Axe 3 concret et actionnable]
+1. [Axe 1 — concret, actionnable, lié à un critère de la grille]
+2. [Axe 2 — concret, actionnable, lié à un critère de la grille]
+3. [Axe 3 — concret, actionnable, lié à un critère de la grille]
+
+Source : Grille indicative BO n°36 du 28 septembre 2023 — MENE2323117N
 
 FORMAT BALISES : [Q1] [Q2] [Q3] pour les questions — [BILAN] pour commencer le bilan.`;
 
@@ -344,6 +556,7 @@ function LevelSelector({ level, setLevel, color }) {
 // ── SETUP STMG ────────────────────────────────────────────────────────────
 function SetupSTMG({onStart,onBack}) {
   const [q,setQ]=useState(""), [t,setT]=useState(""), [level,setLevel]=useState("intermediaire");
+  const [etablissement,setEtablissement]=useState(""), [ville,setVille]=useState("");
   const c=COLORS.stmg, can=q.trim().length>10&&t.trim().length>50;
   return <div>
     <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:"#888",fontSize:13,marginBottom:20,display:"flex",alignItems:"center",gap:6}}>← Retour</button>
@@ -362,8 +575,29 @@ function SetupSTMG({onStart,onBack}) {
       value={t} onChange={setT} color={c.primary}
       placeholder={"Collez ici votre présentation, ou utilisez le micro ci-dessous...\n\nAu cours de mon année de terminale, j'ai étudié l'entreprise..."}
     />
+    <div style={{background:"#F4F3F8",borderRadius:12,padding:"14px 16px",marginBottom:20}}>
+      <div style={{fontSize:11,color:"#888",fontFamily:"monospace",letterSpacing:".06em",textTransform:"uppercase",marginBottom:12}}>
+        🏫 Votre établissement <span style={{fontWeight:400,color:"#bbb"}}>(optionnel)</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div>
+          <div style={{fontSize:11,color:"#666",marginBottom:5}}>Nom du lycée</div>
+          <input type="text" value={etablissement} onChange={e=>setEtablissement(e.target.value)}
+            placeholder="Ex : Lycée Henri IV"
+            style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${etablissement?"#9CA3AF":"#E8E7F0"}`,borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#1C1A2E",outline:"none",background:"#fff"}}
+          />
+        </div>
+        <div>
+          <div style={{fontSize:11,color:"#666",marginBottom:5}}>Ville</div>
+          <input type="text" value={ville} onChange={e=>setVille(e.target.value)}
+            placeholder="Ex : Paris"
+            style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${ville?"#9CA3AF":"#E8E7F0"}`,borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#1C1A2E",outline:"none",background:"#fff"}}
+          />
+        </div>
+      </div>
+    </div>
     <LevelSelector level={level} setLevel={setLevel} color={c.primary}/>
-    <button onClick={()=>onStart(q.trim(),t.trim(),level)} disabled={!can}
+    <button onClick={()=>onStart(q.trim(),t.trim(),level,etablissement.trim(),ville.trim())} disabled={!can}
       style={{width:"100%",padding:"14px",background:can?c.primary:"#C8C7D4",color:"#fff",border:"none",borderRadius:12,fontSize:15,fontWeight:500,cursor:can?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all .2s"}}>
       <span>⚖️ Le jury prend la parole</span><span style={{fontSize:18}}>→</span>
     </button>
@@ -491,7 +725,7 @@ function ChatScreen({system,question,filiere,spe1,spe2,etablissement,ville,onRes
       <div style={{flex:1}}>
         <div style={{fontStyle:"italic",color:c.primary,fontSize:13,marginBottom:3}}>« {question} »</div>
         <div style={{fontSize:11,color:"#888",fontFamily:"monospace"}}>
-          {filiere==="stmg"?"STMG · Économie-Gestion":`Série Générale · ${spe1} × ${spe2}`} · Académie de Bordeaux
+          {filiere==="stmg"?"STMG · Économie-Gestion":`Série Générale · ${spe1} × ${spe2}`} · BO n°36 — 28 sept. 2023
           {etablissement && <span> · {etablissement}{ville ? `, ${ville}` : ""}</span>}
         </div>
       </div>
@@ -618,7 +852,7 @@ function FeedbackForm({filiere,question,spe1,spe2,etablissement,ville,bilanText,
         </div>
       ) : (
         <div style={{background:"#E1F5EE",borderLeft:"3px solid #0B6B54",padding:"12px 16px",borderRadius:"0 10px 10px 0",fontSize:13,color:"#062E22",marginBottom:20}}>
-          ✅ Merci pour ton feedback !
+          ✅ Merci pour ton feedback ! Il aidera à améliorer l'outil pour tous les lycéens.
         </div>
       )}
       <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
@@ -638,7 +872,7 @@ function ChoixFiliere({onChoix}) {
     <div style={{textAlign:"center",marginBottom:32}}>
       <div style={{fontSize:32,marginBottom:12}}>🎓</div>
       <h2 style={{fontSize:22,fontWeight:700,color:"#1C1A2E",marginBottom:8}}>Simulateur Jury — Grand Oral</h2>
-      <p style={{fontSize:14,color:"#666",lineHeight:1.6}}>Entraîne-toi aux questions du jury selon la grille officielle<br/>de l'Académie de Bordeaux</p>
+      <p style={{fontSize:14,color:"#666",lineHeight:1.6}}>Entraîne-toi aux questions du jury selon la grille officielle<br/>d'évaluation du Grand Oral — BO n°36 du 28 septembre 2023</p>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
       {[
@@ -664,7 +898,7 @@ function ChoixFiliere({onChoix}) {
 // ── PAGE MENTIONS LÉGALES ─────────────────────────────────────────────────
 function LegalPage({ onBack }) {
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 0 60px" }}>
+    <div style={{ maxWidth:680, margin:"0 auto", padding:"0 0 60px" }}>
       <button onClick={onBack} style={{ background:"none", border:"none", cursor:"pointer", color:"#888", fontSize:13, marginBottom:24, display:"flex", alignItems:"center", gap:6 }}>
         ← Retour
       </button>
@@ -672,13 +906,13 @@ function LegalPage({ onBack }) {
       <p style={{ fontSize:12, color:"#888", marginBottom:32, fontFamily:"monospace" }}>Dernière mise à jour : mai 2026</p>
       {[
         { title: "1. Responsable du traitement", content: `Cette application est conçue et administrée par Jenny ESTORS, Professeur d'Économie-Gestion.\nElle est hébergée sur Vercel (vercel.com) et utilise l'API Anthropic pour générer les questions du jury.` },
-        { title: "2. Données collectées", content: `L'application collecte uniquement les données suivantes, de façon anonyme :\n• La filière choisie (STMG ou Série Générale)\n• Le texte de votre question de gestion\n• La note indicative obtenue\n• Votre retour sur la simulation (boutons de feedback)\n• La date et l'heure de la simulation\n\nAucun nom, prénom, email ou identifiant personnel n'est collecté.` },
+        { title: "2. Données collectées", content: `L'application collecte les données suivantes :\n• Votre adresse email (pour gérer l'accès aux simulations)\n• La filière choisie (STMG ou Série Générale)\n• Le texte de votre question de gestion\n• La note indicative obtenue\n• Votre retour sur la simulation (boutons de feedback)\n• La date et l'heure de la simulation\n\nL'email est utilisé uniquement pour limiter les simulations gratuites et permettre l'accès payant multi-appareils.` },
         { title: "3. Données vocales", content: `La dictée vocale fonctionne entièrement via l'API Web Speech de votre navigateur.\n\n✅ Aucun audio n'est enregistré ni transmis à nos serveurs.\n✅ La reconnaissance vocale est effectuée localement par votre navigateur.\n✅ Seul le texte transcrit est utilisé pour la simulation.` },
-        { title: "4. Finalité du traitement", content: `Les données collectées sont utilisées exclusivement pour :\n• Améliorer la qualité pédagogique de l'outil\n• Produire des statistiques anonymes d'utilisation\n• Aucune donnée n'est revendue ni partagée avec des tiers.` },
-        { title: "5. Durée de conservation", content: `Les données anonymes sont conservées pour une durée maximale de 12 mois, puis supprimées automatiquement.` },
-        { title: "6. Droits des utilisateurs (RGPD)", content: `Conformément au RGPD, vous disposez des droits d'accès, rectification, effacement et opposition.\n\nPour exercer ces droits, contactez : jestors@lyceelyautey.org` },
-        { title: "7. Cookies", content: `Cette application n'utilise pas de cookies de tracking ou publicitaires.` },
-        { title: "8. Hébergement", content: `L'application est hébergée par Vercel Inc.\nLes données de simulation sont stockées dans Supabase (serveurs en Europe — Irlande).` },
+        { title: "4. Finalité du traitement", content: `Les données collectées sont utilisées exclusivement pour :\n• Gérer l'accès aux simulations gratuites et payantes\n• Améliorer la qualité pédagogique de l'outil\n• Produire des statistiques anonymes d'utilisation\n• Aucune donnée n'est revendue ni partagée avec des tiers.` },
+        { title: "5. Durée de conservation", content: `Les données sont conservées pour une durée maximale de 12 mois, puis supprimées automatiquement.` },
+        { title: "6. Droits des utilisateurs (RGPD)", content: `Conformément au RGPD, vous disposez des droits d'accès, rectification, effacement et opposition.\n\nPour exercer ces droits, contactez : jestors12@gmail.com` },
+        { title: "7. Cookies", content: `Cette application n'utilise pas de cookies de tracking ou publicitaires.\nVotre email est mémorisé via localStorage pour éviter de le ressaisir à chaque visite.` },
+        { title: "8. Hébergement", content: `L'application est hébergée par Vercel Inc.\nLes données sont stockées dans Supabase (serveurs en Europe — Irlande).` },
       ].map((section, i) => (
         <div key={i} style={{ marginBottom: 28 }}>
           <h2 style={{ fontSize:15, fontWeight:700, color:"#3D2FA0", marginBottom:8 }}>{section.title}</h2>
@@ -686,7 +920,7 @@ function LegalPage({ onBack }) {
         </div>
       ))}
       <div style={{ background:"#EDE9FF", borderLeft:"3px solid #3D2FA0", padding:"12px 16px", borderRadius:"0 10px 10px 0", fontSize:13, color:"#2A1F7A" }}>
-        📧 Pour toute question : <strong>jestors@lyceelyautey.org</strong>
+        📧 Pour toute question : <strong>jestors12@gmail.com</strong>
       </div>
     </div>
   );
@@ -700,7 +934,7 @@ function Footer({ onLegal }) {
         Conçu par <strong style={{ color:"#3D2FA0" }}>Jenny ESTORS</strong> · Professeur d'Économie-Gestion · © 2026
       </p>
       <p style={{ fontSize:11, color:"#aaa" }}>
-        🔒 Aucun audio enregistré · Données anonymes uniquement ·{" "}
+        🔒 Aucun audio enregistré · Email protégé (RGPD) ·{" "}
         <button onClick={onLegal} style={{ background:"none", border:"none", cursor:"pointer", color:"#3D2FA0", fontSize:11, textDecoration:"underline", padding:0 }}>
           Mentions légales & Confidentialité
         </button>
@@ -711,17 +945,134 @@ function Footer({ onLegal }) {
 
 // ── APP ───────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [screen,setScreen]=useState("choix"), [filiere,setFiliere]=useState("");
-  const [prevScreen,setPrevScreen]=useState("choix");
+  // ── Auth state ──────────────────────────────────────────────────────────
+  const [userEmail, setUserEmail]   = useState(null);
+  const [authReady, setAuthReady]   = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [pendingStart, setPendingStart]     = useState(null);
+
+  // ── App state ───────────────────────────────────────────────────────────
+  const [screen,setScreen]         = useState("choix");
+  const [filiere,setFiliere]       = useState("");
+  const [prevScreen,setPrevScreen] = useState("choix");
   const goLegal = () => { setPrevScreen(screen); setScreen("legal"); };
   const backFromLegal = () => setScreen(prevScreen);
-  const [question,setQ]=useState(""), [trans,setT]=useState("");
-  const [spe1,setS1]=useState(""), [spe2,setS2]=useState("");
-  const [etablissement,setEtablissement]=useState(""), [ville,setVille]=useState("");
-  const [system,setSys]=useState("");
+  const [question,setQ]   = useState("");
+  const [trans,setT]       = useState("");
+  const [spe1,setS1]       = useState("");
+  const [spe2,setS2]       = useState("");
+  const [etablissement,setEtablissement] = useState("");
+  const [ville,setVille]   = useState("");
+  const [system,setSys]    = useState("");
 
-  function restart() { setScreen("choix");setFiliere("");setQ("");setT("");setS1("");setS2("");setEtablissement("");setVille("");setSys(""); }
-  const c=filiere?COLORS[filiere]:COLORS.stmg;
+  const { simCount, isPaid, totalRemaining, canSimulate, useOne, hydrate, markPaid } = useCredits(userEmail);
+
+  // ── 1. Initialisation auth au chargement ────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Vérifier retour paiement Stripe AVANT d'afficher le modal
+    const params    = new URLSearchParams(window.location.search);
+    const payment   = params.get("payment");
+    const sessionId = params.get("session_id");
+    const savedEmail = localStorage.getItem("go_email");
+
+    async function init() {
+      // Cas : retour paiement Stripe
+      if (payment === "success" && sessionId && savedEmail) {
+        try {
+          const res  = await fetch(`/api/verify-payment?session_id=${sessionId}&email=${encodeURIComponent(savedEmail)}`);
+          const data = await res.json();
+          if (data.paid) {
+            markPaid();
+            window.history.replaceState({}, "", "/");
+          }
+        } catch {}
+      }
+
+      // Cas : email déjà connu → vérifier statut côté serveur
+      if (savedEmail) {
+        try {
+          const res  = await fetch("/api/check-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: savedEmail }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            hydrate(data);
+            setUserEmail(savedEmail);
+          } else {
+            // Erreur serveur → on garde l'email mais on affiche quand même
+            setUserEmail(savedEmail);
+          }
+        } catch {
+          setUserEmail(savedEmail);
+        }
+      }
+
+      setAuthReady(true);
+    }
+
+    init();
+  }, []);
+
+  // ── 2. Callback quand l'utilisateur confirme son email ──────────────────
+  async function handleEmailConfirmed({ email, simulations_used, is_paid }) {
+    hydrate({ simulations_used, is_paid });
+    setUserEmail(email);
+    setShowEmailModal(false);
+    // Lancer la simulation en attente
+    if (pendingStart) {
+      const { q, t, s1, s2, sys, etab, vil } = pendingStart;
+      setPendingStart(null);
+      await launchSimulation(q, t, s1, s2, sys, etab, vil);
+    }
+  }
+
+  // ── 3. Lancer une simulation ─────────────────────────────────────────────
+  async function handleStart(q, t, s1, s2, sys, etab, vil) {
+    // Si pas encore d'email → afficher le modal d'abord
+    if (!userEmail) {
+      setPendingStart({ q, t, s1, s2, sys, etab, vil });
+      setShowEmailModal(true);
+      return;
+    }
+    await launchSimulation(q, t, s1, s2, sys, etab, vil);
+  }
+
+  async function launchSimulation(q, t, s1, s2, sys, etab, vil) {
+    // Vérif côté serveur (non contournable)
+    const allowed = await useOne();
+    if (!allowed) {
+      setScreen("payment");
+      return;
+    }
+    setQ(q); setT(t); setS1(s1||""); setS2(s2||"");
+    setEtablissement(etab||""); setVille(vil||"");
+    setSys(sys);
+    setScreen("chat");
+  }
+
+  function restart() {
+    setScreen("choix"); setFiliere(""); setQ(""); setT(""); setS1(""); setS2("");
+    setEtablissement(""); setVille(""); setSys("");
+  }
+
+  const c = filiere ? COLORS[filiere] : COLORS.stmg;
+
+  // ── Affichage ─────────────────────────────────────────────────────────────
+  // Pendant la vérification initiale : loader léger
+  if (!authReady) {
+    return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#FDFCFF" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>⚖️</div>
+          <div style={{ fontSize:13, color:"#888", fontFamily:"monospace" }}>Chargement…</div>
+        </div>
+      </div>
+    );
+  }
 
   return <>
     <Head>
@@ -753,12 +1104,28 @@ export default function Home() {
     </div>
 
     <div style={{maxWidth:780,margin:"0 auto",padding:"22px 18px 60px"}}>
-      {screen==="choix"   && <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>}
-      {screen==="setup"   && filiere==="stmg"    && <SetupSTMG    onStart={(q,t,lvl)=>{setQ(q);setT(t);setSys(buildPromptSTMG(q,t,lvl));setScreen("chat");}} onBack={()=>setScreen("choix")}/>}
-      {screen==="setup"   && filiere==="general" && <SetupGeneral onStart={(q,t,s1,s2,lvl,etab,vil)=>{setQ(q);setT(t);setS1(s1);setS2(s2);setEtablissement(etab);setVille(vil);setSys(buildPromptGeneral(q,t,s1,s2,lvl));setScreen("chat");}} onBack={()=>setScreen("choix")}/>}
+      {screen==="choix" && (
+        <>
+          <div style={{textAlign:"center",marginBottom:16}}>
+            <span style={{fontSize:12,color:isPaid?"#0B6B54":"#6558D3",background:isPaid?"#E1F5EE":"#EDE9FF",padding:"4px 14px",borderRadius:99,fontFamily:"monospace"}}>
+              {isPaid
+                ? `⭐ Accès illimité jusqu'au 11 juillet`
+                : simCount >= FREE_LIMIT
+                  ? "🔒 Essai gratuit terminé"
+                  : `✅ ${FREE_LIMIT - simCount} simulation${FREE_LIMIT - simCount > 1 ? "s" : ""} gratuite${FREE_LIMIT - simCount > 1 ? "s" : ""} restante${FREE_LIMIT - simCount > 1 ? "s" : ""}`
+              }
+            </span>
+          </div>
+          <ChoixFiliere onChoix={f=>{setFiliere(f);setScreen("setup");}}/>
+        </>
+      )}
+      {screen==="setup"   && filiere==="stmg"    && <SetupSTMG    onStart={(q,t,lvl,etab,vil)=>handleStart(q,t,"","",buildPromptSTMG(q,t,lvl),etab,vil)} onBack={()=>setScreen("choix")}/>}
+      {screen==="setup"   && filiere==="general" && <SetupGeneral onStart={(q,t,s1,s2,lvl,etab,vil)=>handleStart(q,t,s1,s2,buildPromptGeneral(q,t,s1,s2,lvl),etab,vil)} onBack={()=>setScreen("choix")}/>}
       {screen==="chat"    && <ChatScreen system={system} question={question} filiere={filiere} spe1={spe1} spe2={spe2} etablissement={etablissement} ville={ville} onRestart={restart}/>}
+      {screen==="payment" && <PaymentWall onBack={()=>setScreen("choix")} email={userEmail}/>}
       {screen==="legal"   && <LegalPage onBack={backFromLegal}/>}
       {screen!=="legal"   && <Footer onLegal={goLegal}/>}
     </div>
+    {showEmailModal && <EmailModal onConfirmed={handleEmailConfirmed} />}
   </>;
 }
